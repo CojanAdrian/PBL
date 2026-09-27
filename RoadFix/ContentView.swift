@@ -7,13 +7,22 @@
 
 import SwiftUI
 
+// TODO: Replace this placeholder body with the real tab view (citizen Map
+// tab + Staff Dashboard tab) once that work is merged into this branch.
 struct ContentView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        VStack(spacing: 16) {
+            if let user = authViewModel.currentUser {
+                Text("Signed in as \(user.email)")
+                Text("Role: \(user.role)")
+                    .foregroundStyle(.secondary)
+            }
+            Button("Sign Out") {
+                authViewModel.signOut()
+            }
+            .buttonStyle(.bordered)
         }
         .padding()
     }
@@ -21,4 +30,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(AuthViewModel())
 }
