@@ -1,0 +1,13 @@
+# Xcode per-user state and build output
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.DS_Store
+
+# Firebase config. The repo is public, so share this file privately
+# (it goes in RoadFix/ next to RoadFixApp.swift).
+RoadFix/GoogleService-Info.plist
+
+# Web simulator
+web-sim/node_modules/

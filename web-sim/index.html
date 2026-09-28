@@ -1,0 +1,2076 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoadFix Simulator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* ---------- page (dev panel) tokens ---------- */
+  :root {
+    --page-bg: #eceef2;
+    --panel-bg: #ffffff;
+    --panel-border: #d9dce3;
+    --text: #1d2027;
+    --muted: #666c78;
+    --accent: #2f6fde;
+    --code-bg: #f4f5f8;
+    --ok: #1f8a4c;
+    --warn: #b7791f;
+    --err: #c53030;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #121418; --panel-bg: #1b1e24; --panel-border: #2c3038; --text: #e7e9ee;
+      --muted: #9aa0ac; --accent: #6b9cff; --code-bg: #14161b; --ok: #4ccf86; --warn: #e6b050; --err: #ff6b6b;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #121418; --panel-bg: #1b1e24; --panel-border: #2c3038; --text: #e7e9ee;
+    --muted: #9aa0ac; --accent: #6b9cff; --code-bg: #14161b; --ok: #4ccf86; --warn: #e6b050; --err: #ff6b6b;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page-bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .stage { display: flex; gap: 32px; justify-content: center; align-items: flex-start; padding: 20px 16px; min-height: 100vh; }
+  .device-col { display: flex; flex-direction: column; align-items: center; gap: 10px; position: sticky; top: 20px; }
+  .device-caption { color: var(--muted); font-size: 12px; text-align: center; }
+
+  /* ---------- iPhone frame ---------- */
+  .device {
+    width: 417px; height: 876px; padding: 12px; border-radius: 68px; background: #0b0b0c;
+    box-shadow: 0 0 0 2px #3a3a3e, 0 30px 60px rgba(0,0,0,.35); position: relative;
+  }
+  .screen {
+    width: 393px; height: 852px; border-radius: 56px; overflow: hidden; position: relative;
+    background: var(--ios-bg); color: var(--ios-label);
+    font-family: -apple-system, "SF Pro Text", "SF Pro", system-ui, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; user-select: none;
+  }
+  .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; border-radius: 20px; background: #000; z-index: 1000; }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 54px; z-index: 900;
+    display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 50px;
+    font: 600 17px/1 -apple-system, "SF Pro Text", system-ui, sans-serif; color: var(--ios-label); pointer-events: none;
+  }
+  .statusbar .icons { display: flex; gap: 6px; align-items: center; }
+  .statusbar svg { fill: currentColor; display: block; }
+  .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 139px; height: 5px; border-radius: 3px; background: var(--ios-label); z-index: 1000; pointer-events: none; }
+  #app { position: absolute; inset: 0; }
+
+  /* ---------- iOS system tokens ---------- */
+  .screen {
+    --ios-bg: #ffffff; --ios-grouped-bg: #f2f2f7; --ios-cell: #ffffff;
+    --ios-label: #000000; --ios-secondary: rgba(60,60,67,.6); --ios-tertiary: rgba(60,60,67,.3);
+    --ios-separator: rgba(60,60,67,.18);
+    --ios-tint: #007aff; --ios-red: #ff3b30; --ios-orange: #ff9500; --ios-green: #34c759;
+    --ios-field-bg: #ffffff; --ios-field-border: #c6c6c8; --ios-fill: rgba(120,120,128,.12);
+    --ios-glass: rgba(255,255,255,.78); --ios-glass-border: rgba(0,0,0,.08); --ios-seg-thumb: #ffffff;
+  }
+  .screen.dark {
+    --ios-bg: #000000; --ios-grouped-bg: #000000; --ios-cell: #1c1c1e;
+    --ios-label: #ffffff; --ios-secondary: rgba(235,235,245,.6); --ios-tertiary: rgba(235,235,245,.3);
+    --ios-separator: rgba(84,84,88,.6);
+    --ios-tint: #0a84ff; --ios-red: #ff453a; --ios-orange: #ff9f0a; --ios-green: #30d158;
+    --ios-field-bg: #000000; --ios-field-border: #3a3a3c; --ios-fill: rgba(120,120,128,.24);
+    --ios-glass: rgba(44,44,46,.78); --ios-glass-border: rgba(255,255,255,.1); --ios-seg-thumb: #636366;
+  }
+
+  /* ---------- SwiftUI-ish primitives ---------- */
+  .navstack { position: absolute; inset: 0; overflow: hidden; }
+  .page {
+    position: absolute; inset: 0; background: var(--ios-bg); display: flex; flex-direction: column;
+    padding-top: 62px; padding-bottom: 34px;
+    transition: transform .42s cubic-bezier(.22,.9,.25,1), filter .42s; will-change: transform;
+  }
+  .page.enter { transform: translateX(100%); }
+  .page.covered { transform: translateX(-28%); filter: brightness(.92); }
+  .page.pushed { box-shadow: -8px 0 24px rgba(0,0,0,.12); }
+  .navbar { height: 44px; flex: none; position: relative; }
+  .glass-btn {
+    min-width: 44px; height: 44px; border-radius: 22px; padding: 0 14px;
+    background: var(--ios-glass); border: 0.5px solid var(--ios-glass-border);
+    box-shadow: 0 2px 10px rgba(0,0,0,.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    color: var(--ios-label); display: inline-grid; place-items: center; cursor: pointer;
+    font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px;
+  }
+  .glass-btn.icon { padding: 0; }
+  .glass-btn:active:not(:disabled) { transform: scale(.94); }
+  .glass-btn.prominent { background: var(--ios-tint); color: #fff; border-color: transparent; font-weight: 600; }
+  .glass-btn:disabled { color: var(--ios-tertiary); cursor: default; }
+  .glass-btn.prominent:disabled { background: var(--ios-fill); color: var(--ios-tertiary); }
+  .back-btn { position: absolute; left: 16px; top: 0; }
+  .body { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .vstack { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px; width: 100%; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: .37px; line-height: 41px; margin: 0; }
+  .body-text { font-size: 17px; line-height: 22px; letter-spacing: -.43px; }
+  .secondary { color: var(--ios-secondary); }
+  .footnote { font-size: 13px; line-height: 18px; letter-spacing: -.08px; }
+  .caption { font-size: 12px; line-height: 16px; }
+  .error { color: var(--ios-red); text-align: center; }
+  svg.lucide { display: block; }
+
+  .tf {
+    width: 100%; height: 34px; border: 0.5px solid var(--ios-field-border); border-radius: 5px;
+    background: var(--ios-field-bg); color: var(--ios-label); padding: 0 7px;
+    font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; outline: none; user-select: text;
+  }
+  .tf::placeholder { color: var(--ios-tertiary); }
+  .tf:focus { caret-color: var(--ios-tint); }
+
+  .btn {
+    font: 500 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px;
+    border: 0; cursor: pointer; border-radius: 999px; padding: 7px 16px; min-height: 34px; transition: opacity .12s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:active:not(:disabled) { opacity: .6; }
+  .btn.prominent { background: var(--ios-tint); color: #fff; }
+  .btn.bordered { background: var(--ios-fill); color: var(--ios-tint); }
+  .btn:disabled { background: var(--ios-fill); color: var(--ios-tertiary); cursor: default; }
+  .btn.plain { background: none; padding: 0; min-height: 0; color: var(--ios-tint); font-weight: 400; border-radius: 0; }
+
+  .disclosure { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .disclosure-label {
+    display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--ios-label); font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; min-height: 22px;
+  }
+  .disclosure-label svg { color: var(--ios-tint); transition: transform .25s; }
+  .disclosure.open .disclosure-label svg { transform: rotate(90deg); }
+  .disclosure-content { display: none; }
+  .disclosure.open .disclosure-content { display: block; }
+
+  .progress { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .spinner { width: 20px; height: 20px; animation: spin 0.9s steps(8) infinite; color: var(--ios-secondary); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- TabView ---------- */
+  .tabview { position: absolute; inset: 0; }
+  .tab-content { position: absolute; inset: 0; display: none; }
+  .tab-content.active { display: block; }
+  .tabbar {
+    position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); z-index: 500;
+    display: flex; gap: 2px; padding: 4px; height: 62px; border-radius: 31px;
+    background: var(--ios-glass); border: 0.5px solid var(--ios-glass-border);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  }
+  .tab-btn {
+    width: 82px; border: 0; background: none; border-radius: 27px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--ios-label); font: 500 10px -apple-system, "SF Pro Text", system-ui, sans-serif;
+  }
+  .tab-btn svg { width: 24px; height: 24px; }
+  .tab-btn.active { color: var(--ios-tint); background: var(--ios-fill); }
+
+  /* ---------- Map tab ---------- */
+  .map-page { position: absolute; inset: 0; }
+  .map { position: absolute; inset: 0; background: #e8e6df; }
+  .screen.dark .map { background: #1b1b1d; }
+  .map-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 130px; z-index: 450; pointer-events: none;
+    background: linear-gradient(to bottom, var(--ios-bg) 0%, color-mix(in srgb, var(--ios-bg) 75%, transparent) 55%, transparent 100%);
+  }
+  /* Inline nav bar: leading "RoadFix" title and trailing account button on one row */
+  .map-toolbar {
+    position: absolute; top: 62px; left: 16px; right: 16px; height: 44px; z-index: 470;
+    display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+  }
+  .map-toolbar > * { pointer-events: auto; }
+  .title-inline { font-size: 28px; font-weight: 700; letter-spacing: .36px; line-height: 34px; margin: 0; }
+  .fab {
+    position: absolute; right: 16px; bottom: 112px; z-index: 460; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--ios-tint); color: #fff; border: 0; cursor: pointer; display: grid; place-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.33);
+  }
+  .fab:active { transform: scale(.94); }
+  .fab svg { width: 26px; height: 26px; stroke-width: 3; }
+  .leaflet-container { font-family: inherit; }
+  .leaflet-tile-pane { filter: saturate(.75) brightness(1.03); }
+  .screen.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+  .leaflet-bottom.leaflet-left { bottom: 100px; }
+  .leaflet-control-attribution { font-size: 9px; background: transparent !important; color: var(--ios-secondary); }
+  .leaflet-control-attribution a { color: inherit; }
+  .pin-icon { background: none; border: 0; }
+  .pin { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
+  .pin-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); border: 0; cursor: pointer; padding: 0; }
+  .pin-dot svg { width: 14px; height: 14px; stroke-width: 3; }
+  .pin-label {
+    font: 600 11px -apple-system, "SF Pro Text", system-ui, sans-serif; color: #1c1c1e; white-space: nowrap;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
+  }
+  .screen.dark .pin-label { color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000; }
+
+  /* ---------- Lists / forms ---------- */
+  .scroll-page { position: absolute; inset: 0; overflow-y: auto; background: var(--ios-grouped-bg); padding: 62px 0 120px; }
+  .scroll-page::-webkit-scrollbar { display: none; }
+  .title-block { padding: 0 16px 8px; }
+  .section { margin: 0 16px 20px; }
+  .section-header { font-size: 13px; color: var(--ios-secondary); text-transform: uppercase; padding: 0 20px 7px; letter-spacing: -.08px; }
+  .cell-group { background: var(--ios-cell); border-radius: 22px; overflow: hidden; }
+  .cell { padding: 11px 16px; min-height: 44px; position: relative; font-size: 17px; letter-spacing: -.43px; display: flex; align-items: center; gap: 10px; }
+  .cell + .cell::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 0.5px solid var(--ios-separator); }
+  .cell.tappable { cursor: pointer; }
+  .cell .spacer { flex: 1; }
+  .tint { color: var(--ios-tint); }
+  .ta {
+    width: 100%; border: 0; outline: none; resize: none; background: transparent; color: var(--ios-label);
+    font: 17px/22px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; padding: 0; user-select: text;
+  }
+  .ta::placeholder { color: var(--ios-tertiary); }
+  .label { display: inline-flex; align-items: center; gap: 8px; }
+  .label svg { width: 18px; height: 18px; }
+  .seg { display: flex; background: var(--ios-fill); border-radius: 999px; padding: 2px; width: 100%; }
+  .seg button {
+    flex: 1; border: 0; background: none; border-radius: 999px; padding: 6px 4px; cursor: pointer;
+    font: 500 13px -apple-system, "SF Pro Text", system-ui, sans-serif; color: var(--ios-label);
+  }
+  .seg button.on { background: var(--ios-seg-thumb); box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  .badge { font: 700 12px -apple-system, "SF Pro Text", system-ui, sans-serif; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .section-footer { font-size: 13px; color: var(--ios-secondary); padding: 7px 20px 0; line-height: 18px; }
+  .lc-value { color: var(--ios-secondary); text-align: right; }
+  .cell.button { color: var(--ios-tint); cursor: pointer; }
+  .cell.button.destructive { color: var(--ios-red); }
+  .cell.button:active { background: var(--ios-fill); }
+  .unavailable { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 120px 40px 0; }
+  .unavailable svg { width: 52px; height: 52px; color: var(--ios-secondary); margin-bottom: 6px; }
+  .unavailable h2 { margin: 0; font-size: 22px; font-weight: 700; }
+  .row-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+  .row-icon svg { width: 14px; height: 14px; stroke-width: 3; }
+  .ios-settings { position: absolute; inset: 0; z-index: 960; background: var(--ios-grouped-bg); overflow-y: auto; animation: slidein .35s cubic-bezier(.22,.9,.25,1); }
+  @keyframes slidein { from { transform: translateX(100%); } }
+  .breadcrumb { position: absolute; top: 40px; left: 22px; z-index: 5; font: 600 12px -apple-system, system-ui, sans-serif; color: var(--ios-tint); background: none; border: 0; cursor: pointer; }
+
+  /* ---------- Sheets, menus, alerts ---------- */
+  .sheet-layer { position: absolute; inset: 0; z-index: 700; }
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .35s; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; top: 54px; border-radius: 38px 38px 0 0; overflow: hidden;
+    background: var(--ios-grouped-bg); transform: translateY(100%); transition: transform .42s cubic-bezier(.22,.9,.25,1);
+    display: flex; flex-direction: column; box-shadow: 0 -4px 30px rgba(0,0,0,.15);
+  }
+  .sheet.plain-bg { background: var(--ios-bg); }
+  .sheet-layer.shown .sheet { transform: translateY(0); }
+  .sheet-layer.shown .sheet-backdrop { opacity: 1; }
+  .sheet-grabber { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 36px; height: 5px; border-radius: 3px; background: var(--ios-tertiary); }
+  .sheet-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 0; height: 58px; flex: none; }
+  .sheet-scroll { flex: 1; overflow-y: auto; padding-bottom: 40px; }
+  .sheet-scroll::-webkit-scrollbar { display: none; }
+
+  .menu-layer { position: absolute; inset: 0; z-index: 800; }
+  .menu {
+    position: absolute; min-width: 250px; border-radius: 24px; overflow: hidden; padding: 6px 0;
+    background: var(--ios-glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 0.5px solid var(--ios-glass-border); box-shadow: 0 10px 40px rgba(0,0,0,.22);
+    transform-origin: top right; animation: pop .18s ease-out;
+  }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 18px; background: none; border: 0;
+    font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; color: var(--ios-label); text-align: left; cursor: pointer;
+  }
+  .menu-item:hover { background: var(--ios-fill); }
+  .menu-item.static { cursor: default; color: var(--ios-secondary); font-size: 15px; padding: 7px 18px; }
+  .menu-item.static:hover { background: none; }
+  .menu-item.destructive { color: var(--ios-red); }
+  .menu-item .check { width: 16px; flex: none; }
+  .menu-item .grow { flex: 1; }
+  .menu-item svg { width: 18px; height: 18px; }
+  .menu-sep { height: 8px; background: var(--ios-fill); margin: 6px 0; }
+
+  .alert-layer { position: absolute; inset: 0; z-index: 950; background: rgba(0,0,0,.25); display: grid; place-items: center; animation: fade .2s; }
+  @keyframes fade { from { opacity: 0; } }
+  .alert {
+    width: 300px; border-radius: 34px; padding: 22px 18px 16px; text-align: center;
+    background: var(--ios-glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    animation: pop .2s ease-out;
+  }
+  .alert h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; letter-spacing: -.43px; }
+  .alert p { font-size: 13px; margin: 0 0 16px; line-height: 18px; }
+  .alert button {
+    display: block; width: 100%; margin-top: 8px; height: 48px; border-radius: 24px; border: 0; cursor: pointer;
+    background: var(--ios-fill); color: var(--ios-label); font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif;
+  }
+  .alert button.bold { font-weight: 600; }
+
+  /* ---------- Auth screens (AuthComponents.swift) ---------- */
+  .screen { --ios-glass-card: rgba(255,255,255,.62); }
+  .screen.dark { --ios-glass-card: rgba(44,44,48,.55); }
+  .auth-bg { position: absolute; inset: 0; overflow: hidden; }
+  .auth-map { position: absolute; inset: -30px; filter: blur(8px); background: #e8e6df; }
+  .screen.dark .auth-map { background: #1b1b1d; }
+  .screen.dark .auth-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+  .auth-dim { position: absolute; inset: 0; background: color-mix(in srgb, var(--ios-bg) 35%, transparent); }
+  .auth-attrib { position: absolute; bottom: 14px; right: 18px; font-size: 9px; color: var(--ios-secondary); z-index: 2; }
+  .auth-attrib a { color: inherit; }
+  .page.auth { background: transparent; transition: transform .42s cubic-bezier(.22,.9,.25,1), opacity .3s; }
+  .page.auth.covered { transform: translateX(-28%); opacity: 0; filter: none; }
+  .page.auth.pushed { box-shadow: none; }
+  .auth-scroll { flex: 1; overflow-y: auto; position: relative; }
+  .auth-scroll::-webkit-scrollbar { display: none; }
+  .auth-stack { min-height: 100%; display: flex; flex-direction: column; gap: 20px; padding: 24px 20px; }
+  .auth-spacer { flex: 1; }
+  .auth-header { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  .app-mark {
+    width: 72px; height: 72px; border-radius: 18px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--ios-tint), color-mix(in srgb, var(--ios-tint) 75%, transparent));
+    box-shadow: 0 4px 8px rgba(0,0,0,.15);
+  }
+  .auth-subtitle { font-size: 15px; line-height: 20px; color: var(--ios-secondary); letter-spacing: -.23px; }
+  .glass-card {
+    border-radius: 22px; overflow: hidden;
+    background: var(--ios-glass-card); border: 0.5px solid var(--ios-glass-border);
+    backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    box-shadow: 0 8px 30px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .auth-row { display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 50px; }
+  .auth-row > svg, .auth-row .row-sym svg { width: 20px; height: 20px; color: var(--ios-secondary); flex: none; }
+  .auth-row .row-sym { display: grid; width: 20px; flex: none; color: var(--ios-secondary); }
+  .auth-input {
+    flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ios-label);
+    font: 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; padding: 14px 0; user-select: text;
+  }
+  .auth-input::placeholder { color: var(--ios-tertiary); }
+  .auth-input:focus { caret-color: var(--ios-tint); }
+  .eye-btn { background: none; border: 0; padding: 4px; cursor: pointer; color: var(--ios-secondary); display: grid; }
+  .eye-btn svg { width: 20px; height: 20px; }
+  .auth-divider { margin-left: 48px; border-top: 0.5px solid var(--ios-separator); }
+  .auth-error { display: flex; gap: 6px; align-items: flex-start; color: var(--ios-red); font-size: 13px; line-height: 18px; padding: 0 4px; }
+  .auth-error svg { width: 15px; height: 15px; flex: none; margin-top: 1px; fill: currentColor; stroke: var(--ios-bg); }
+  .glass-prominent {
+    width: 100%; height: 50px; border-radius: 25px; border: 0; cursor: pointer; position: relative;
+    font: 600 17px -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: -.43px; color: #fff;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ios-tint) 88%, #fff), var(--ios-tint));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 18px color-mix(in srgb, var(--ios-tint) 35%, transparent);
+    display: grid; place-items: center; transition: transform .1s, opacity .15s;
+  }
+  .glass-prominent:active:not(:disabled) { transform: scale(.98); }
+  .glass-prominent:disabled { background: var(--ios-fill); color: var(--ios-tertiary); box-shadow: none; cursor: default; }
+  .glass-prominent.loading:disabled { background: linear-gradient(180deg, color-mix(in srgb, var(--ios-tint) 88%, #fff), var(--ios-tint)); color: #fff; }
+  .glass-prominent .spinner { color: #fff; }
+  .auth-footer { display: flex; justify-content: center; gap: 4px; font-size: 13px; }
+  .auth-footer button { background: none; border: 0; padding: 0; font: 600 13px -apple-system, system-ui, sans-serif; color: var(--ios-tint); cursor: pointer; }
+  .auth-disclosure { padding: 0 4px; }
+
+  /* ---------- dev panel ---------- */
+  .panel { width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .panel h1 { font-size: 20px; margin: 0; }
+  .panel .sub { color: var(--muted); margin: 2px 0 0; }
+  .card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 14px 16px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; }
+  .row label { cursor: pointer; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .pbtn { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 7px; cursor: pointer; border: 1px solid var(--panel-border); background: var(--code-bg); color: var(--text); }
+  .pbtn:hover { border-color: var(--accent); }
+  .pbtn.danger { color: var(--err); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .pinput, .pselect { font: 13px ui-monospace, Consolas, monospace; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--panel-border); background: var(--code-bg); color: var(--text); width: 190px; }
+  .pselect { font-family: inherit; }
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 11px; background: var(--panel-border); transition: background .15s; }
+  .switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .switch input:checked + span { background: var(--ok); }
+  .switch input:checked + span::after { transform: translateX(16px); }
+  .accounts { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .accounts td { padding: 4px 0; border-top: 1px solid var(--panel-border); vertical-align: middle; }
+  .accounts tr:first-child td { border-top: 0; }
+  .accounts .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+  .tag.staff { color: var(--warn); }
+  .tag.citizen { color: var(--ok); }
+  .tag.none { color: var(--err); }
+  pre.json { margin: 0; max-height: 220px; overflow: auto; background: var(--code-bg); border-radius: 8px; padding: 10px; font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  .log { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; font: 12px/1.5 ui-monospace, Consolas, monospace; }
+  .log li { padding: 2px 0; border-bottom: 1px dashed var(--panel-border); display: flex; gap: 8px; }
+  .log .t { color: var(--muted); flex: none; }
+  .log .auth { color: var(--accent); }
+  .log .fs { color: var(--warn); }
+  .log .vm { color: var(--ok); }
+  .log .loc { color: #8f6bd6; }
+  .log .bad { color: var(--err); }
+  .session { font-size: 13px; }
+  .reports-list { font-size: 13px; margin: 0; padding: 0; list-style: none; }
+  .reports-list li { padding: 4px 0; border-top: 1px solid var(--panel-border); }
+  .reports-list li:first-child { border-top: 0; }
+
+  @media (max-width: 920px) {
+    .stage { flex-direction: column; align-items: center; }
+    .device-col { position: static; }
+    .panel { width: 100%; max-width: 560px; }
+  }
+</style>
+</head>
+<body>
+<main class="stage">
+  <section class="device-col">
+    <div id="deviceWrap">
+      <div class="device">
+        <div class="screen" id="screen">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span id="clock">9:41</span>
+            <span class="icons" aria-hidden="true">
+              <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+              <svg id="wifiIcon" width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.3c2.3 0 4.4.9 6 2.4l1.1-1.1C13.2 1.8 10.7.7 8 .7S2.8 1.8.9 3.6L2 4.7c1.6-1.5 3.7-2.4 6-2.4zm0 3.2c1.4 0 2.7.5 3.7 1.4l1.1-1.1C11.5 4.6 9.8 3.9 8 3.9s-3.5.7-4.8 1.9l1.1 1.1c1-.9 2.3-1.4 3.7-1.4zm0 3.2c-.6 0-1.2.2-1.6.6L8 11l1.6-1.7c-.4-.4-1-.6-1.6-.6z"/></svg>
+              <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" opacity=".4"/></svg>
+            </span>
+          </div>
+          <div id="app"></div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+    <div class="device-caption">iPhone 17 Pro · iOS 26.2 · md.roadfix.RoadFix · branch integrate-full-app</div>
+  </section>
+
+  <aside class="panel">
+    <div>
+      <h1>RoadFix Simulator</h1>
+      <p class="sub">A web replica of the SwiftUI app on branch <code>integrate-full-app</code>, with the Swift logic ported line for line. Firebase Auth and Firestore are replaced by an in-browser mock that enforces <code>firestore.rules</code>. The map uses OpenStreetMap in place of Apple Maps. This is not a real iOS build.</p>
+    </div>
+
+    <div class="card">
+      <h2>Accounts (mock Firebase Auth)</h2>
+      <table class="accounts" id="accounts"></table>
+      <div class="hint" style="margin-top:8px">“Fill” types the credentials into the Log In screen. Only staff accounts see the Staff tab.</div>
+    </div>
+
+    <div class="card">
+      <h2>Conditions</h2>
+      <div class="row"><label for="optOffline">Offline (airplane mode)</label><span class="switch"><input type="checkbox" id="optOffline"><span></span></span></div>
+      <div class="row"><label for="optFailWrites">Fail Firestore writes</label><span class="switch"><input type="checkbox" id="optFailWrites"><span></span></span></div>
+      <div class="row"><label for="optJitter">Network jitter (random latency)</label><span class="switch"><input type="checkbox" id="optJitter"><span></span></span></div>
+      <div class="row"><label for="optLatency">Latency <span id="latencyVal" class="hint"></span></label><input type="range" id="optLatency" min="0" max="2500" step="50"></div>
+      <div class="row"><label for="optDark">Dark appearance</label><span class="switch"><input type="checkbox" id="optDark"><span></span></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Location (Simulator → Features → Location)</h2>
+      <div class="row"><label for="locPerm">Permission for RoadFix</label>
+        <select class="pselect" id="locPerm">
+          <option value="notDetermined">Not asked yet</option>
+          <option value="whenInUse">While Using the App</option>
+          <option value="denied">Never (denied)</option>
+        </select></div>
+      <div class="row"><label for="locPreset">Simulated location</label>
+        <select class="pselect" id="locPreset">
+          <option value="chisinau">Chișinău (random nearby)</option>
+          <option value="applepark">Apple Park (Simulator default)</option>
+        </select></div>
+      <div class="row"><label for="optOldBuild">Old build: no location permission text</label><span class="switch"><input type="checkbox" id="optOldBuild"><span></span></span></div>
+      <div class="hint">Turn this on to reproduce the bug from the full-app folder. iOS never asks for location and New Report waits forever.</div>
+    </div>
+
+    <div class="card">
+      <h2>Backend</h2>
+      <div class="row">
+        <label for="staffCode">config/staffInviteCode.code</label>
+        <input class="pinput" id="staffCode" placeholder="(doc missing)" spellcheck="false">
+      </div>
+      <div class="hint">Leave it empty to delete the doc. Then every staff sign-up falls back to citizen.</div>
+      <div class="session" id="session" style="margin-top:10px"></div>
+      <div class="btn-row">
+        <button class="pbtn" id="relaunch">Relaunch app</button>
+        <button class="pbtn" id="dropProfile">Delete signed-in user's profile doc</button>
+        <button class="pbtn danger" id="reset">Reset all data</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Reports (Firestore <code>reports</code>)</h2>
+      <ul class="reports-list" id="reportsList"></ul>
+      <div class="hint" style="margin-top:8px">Saved in the mock Firestore. Reports are shared between accounts, survive relaunches, and each user can upvote a report once. Photos go to mock Firebase Storage.</div>
+    </div>
+
+    <div class="card">
+      <h2>Firestore</h2>
+      <pre class="json" id="fsDump"></pre>
+    </div>
+
+    <div class="card">
+      <div class="row" style="padding:0 0 8px"><h2 style="margin:0">Event log</h2><button class="pbtn" id="clearLog">Clear</button></div>
+      <ul class="log" id="log"></ul>
+    </div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   Persistence + settings
+   ===================================================================== */
+const DB_KEY = "roadfix-sim-db-v1";
+const SETTINGS_KEY = "roadfix-sim-settings-v1";
+
+function safeGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+function safeSet(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode etc. */ } }
+
+function randomUid() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let s = "";
+  for (let i = 0; i < 28; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+function seedDB() {
+  const now = new Date().toISOString();
+  const citizen = randomUid(), staff = randomUid();
+  return {
+    auth: {
+      users: {
+        [citizen]: { uid: citizen, email: "citizen@roadfix.md", password: "roadfix123" },
+        [staff]: { uid: staff, email: "staff@roadfix.md", password: "roadfix123" },
+      },
+      currentUid: null,
+    },
+    firestore: {
+      users: {
+        [citizen]: { email: "citizen@roadfix.md", role: "citizen", createdAt: now },
+        [staff]: { email: "staff@roadfix.md", role: "staff", createdAt: now },
+      },
+      config: { staffInviteCode: { code: "ROADFIX-STAFF" } },
+      reports: seedReports(citizen, staff),
+    },
+    storage: {},
+  };
+}
+
+// A few reports around Chișinău so the map isn't empty (in the real app the
+// team adds these in the Firebase console or by submitting them).
+function seedReports(citizenUid, staffUid) {
+  const now = Date.now();
+  const fakeVoters = (n) => Array.from({ length: n }, (_, i) => `seed-voter-${i + 1}`);
+  const mk = (category, description, latitude, longitude, status, votes, ago, reporterId) =>
+    [randomUid().slice(0, 20), { category, description, latitude, longitude, status, upvoterIds: fakeVoters(votes), reporterId, createdAt: new Date(now - ago * 1000).toISOString() }];
+  return Object.fromEntries([
+    mk("pothole", "Large pothole blocking the right lane", 47.0245, 28.8322, "reported", 12, 86400, citizenUid),
+    mk("streetlight", "Streetlight has been out for a week", 47.0269, 28.8353, "inProgress", 5, 43200, staffUid),
+    mk("sidewalk", "Cracked sidewalk, tripping hazard", 47.0212, 28.8285, "resolved", 8, 172800, citizenUid),
+    mk("markings", "Crosswalk markings completely faded", 47.0198, 28.8401, "reported", 3, 7200, staffUid),
+  ]);
+}
+
+let db = safeGet(DB_KEY) || seedDB();
+// Upgrade data saved by an older version of the simulator.
+if (!db.firestore.reports) {
+  const uidFor = (email) => (Object.values(db.auth.users).find((u) => u.email === email) || {}).uid || "unknown";
+  db.firestore.reports = seedReports(uidFor("citizen@roadfix.md"), uidFor("staff@roadfix.md"));
+}
+db.storage = db.storage || {};
+const settings = Object.assign(
+  { latency: 600, jitter: false, offline: false, failWrites: false, dark: false,
+    locationPermission: "notDetermined", locationPreset: "chisinau", oldBuild: false },
+  safeGet(SETTINGS_KEY) || {}
+);
+function saveDB() { safeSet(DB_KEY, db); }
+function saveSettings() { safeSet(SETTINGS_KEY, settings); }
+saveDB();
+
+/* =====================================================================
+   Event log
+   ===================================================================== */
+const t0 = performance.now();
+const logEntries = [];
+function log(kind, msg, bad = false) {
+  const t = ((performance.now() - t0) / 1000).toFixed(2).padStart(6, " ");
+  logEntries.unshift({ t, kind, msg, bad });
+  if (logEntries.length > 200) logEntries.pop();
+  renderLog();
+}
+
+/* =====================================================================
+   Mock Firebase: Auth
+   ===================================================================== */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function latency() {
+  let ms = settings.latency;
+  if (settings.jitter) ms = ms * (0.2 + Math.random() * 1.6);
+  return ms;
+}
+async function waitUntilOnline() { while (settings.offline) await sleep(200); }
+
+// Raw values match FirebaseAuth's AuthErrorCode enum.
+const AuthErrorCode = {
+  invalidCredential: 17004, emailAlreadyInUse: 17007, invalidEmail: 17008,
+  wrongPassword: 17009, userNotFound: 17011, networkError: 17020, weakPassword: 17026,
+};
+function authError(name) {
+  const e = new Error(name);
+  e.domain = "FIRAuthErrorDomain"; e.code = AuthErrorCode[name]; e.codeName = name;
+  return e;
+}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function makeUser(record) {
+  return {
+    uid: record.uid,
+    email: record.email,
+    delete(completion) {
+      log("auth", `User(${short(record.uid)}).delete()`);
+      sleep(latency()).then(() => {
+        delete db.auth.users[record.uid];
+        const wasCurrent = db.auth.currentUid === record.uid;
+        if (wasCurrent) db.auth.currentUid = null;
+        saveDB();
+        log("auth", `  → account ${record.email} deleted`);
+        if (wasCurrent) Auth._notify();
+        completion && completion(null);
+        refreshPanel();
+      });
+    },
+  };
+}
+
+const Auth = {
+  _listeners: new Set(),
+  get currentUser() {
+    const rec = db.auth.users[db.auth.currentUid];
+    return rec ? makeUser(rec) : null;
+  },
+  addStateDidChangeListener(cb) {
+    const handle = { cb };
+    this._listeners.add(handle);
+    // Firebase restores the persisted session from the keychain, then calls
+    // the listener once. Delay it a little so "Loading..." is visible.
+    setTimeout(() => {
+      if (!this._listeners.has(handle)) return;
+      const u = this.currentUser;
+      log("auth", `stateDidChange (initial) → ${u ? u.email : "nil"}`);
+      cb(u);
+    }, 450);
+    return handle;
+  },
+  removeStateDidChangeListener(handle) { this._listeners.delete(handle); },
+  _notify() {
+    const u = this.currentUser;
+    log("auth", `stateDidChange → ${u ? u.email : "nil"}`);
+    for (const h of [...this._listeners]) h.cb(u);
+  },
+  findByEmail(email) {
+    const e = email.trim().toLowerCase();
+    return Object.values(db.auth.users).find((u) => u.email.toLowerCase() === e);
+  },
+  async signIn(email, password) {
+    log("auth", `signIn(withEmail: "${email}")`);
+    await sleep(latency());
+    if (settings.offline) throw authError("networkError");
+    if (!EMAIL_RE.test(email.trim())) throw authError("invalidEmail");
+    const rec = this.findByEmail(email);
+    // Firebase's email-enumeration protection returns invalidCredential for both.
+    if (!rec || rec.password !== password) throw authError("invalidCredential");
+    db.auth.currentUid = rec.uid;
+    saveDB();
+    this._notify();
+    return makeUser(rec);
+  },
+  async createUser(email, password) {
+    log("auth", `createUser(withEmail: "${email}")`);
+    await sleep(latency());
+    if (settings.offline) throw authError("networkError");
+    if (!EMAIL_RE.test(email.trim())) throw authError("invalidEmail");
+    if (password.length < 6) throw authError("weakPassword");
+    if (this.findByEmail(email)) throw authError("emailAlreadyInUse");
+    const uid = randomUid();
+    db.auth.users[uid] = { uid, email: email.trim().toLowerCase(), password };
+    db.auth.currentUid = uid;
+    saveDB();
+    log("auth", `  → created uid ${short(uid)}`);
+    this._notify();
+    refreshPanel();
+    return makeUser(db.auth.users[uid]);
+  },
+  signOut() {
+    log("auth", "signOut()");
+    if (db.auth.currentUid === null) return;
+    db.auth.currentUid = null;
+    saveDB();
+    // Firebase dispatches the listener callback asynchronously on main.
+    setTimeout(() => this._notify(), 0);
+  },
+};
+
+/* =====================================================================
+   Mock Firebase: Firestore (+ firestore.rules for users/ and config/)
+   ===================================================================== */
+const SERVER_TIMESTAMP = Symbol("serverTimestamp");
+const FieldValue = {
+  serverTimestamp: () => SERVER_TIMESTAMP,
+  arrayUnion: (values) => ({ __op: "arrayUnion", values }),
+  arrayRemove: (values) => ({ __op: "arrayRemove", values }),
+};
+const fvReplacer = (k, v) => (v === SERVER_TIMESTAMP ? "<serverTimestamp>" : v && v.__op ? `<${v.__op} ${JSON.stringify(v.values)}>` : v);
+
+function firestoreError(code, message) {
+  const e = new Error(message || code); e.code = code; return e;
+}
+function readDoc(path) {
+  const [col, id] = path.split("/");
+  return db.firestore[col] && db.firestore[col][id] ? structuredClone(db.firestore[col][id]) : null;
+}
+
+// Mirrors firestore.rules exactly for the collections the app touches.
+function checkRules(op, path, newData) {
+  const uid = db.auth.currentUid;
+  const [col, id] = path.split("/");
+  const signedIn = uid !== null;
+  if (col === "users") {
+    if (op === "get") return signedIn && uid === id;
+    const existing = db.firestore.users[id];
+    if (!existing) return signedIn && uid === id; // create
+    return signedIn && uid === id && newData.role === existing.role; // update
+  }
+  if (col === "config") return op === "get" ? signedIn : false;
+  if (col === "reports") return signedIn && checkReportRules(op, id, newData, uid);
+  return false;
+}
+
+// match /reports/{reportId} from firestore.rules
+function checkReportRules(op, id, newData, uid) {
+  if (op === "get" || op === "list") return true;
+  const existing = db.firestore.reports[id];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (!existing) { // create
+    return newData.reporterId === uid && newData.status === "reported" && same(newData.upvoterIds, []);
+  }
+  // update
+  const role = db.firestore.users[uid] && db.firestore.users[uid].role;
+  if (role === "staff") return true;
+  if (existing.reporterId === uid && newData.status === existing.status && newData.reporterId === existing.reporterId &&
+      same(newData.upvoterIds || [], existing.upvoterIds || [])) return true;
+  // isOwnUpvoteChange()
+  const keys = new Set([...Object.keys(existing), ...Object.keys(newData)]);
+  const affected = [...keys].filter((k) => !same(existing[k], newData[k]));
+  if (!affected.every((k) => k === "upvoterIds")) return false;
+  const before = new Set(existing.upvoterIds || []), after = new Set(newData.upvoterIds || []);
+  const changed = [...after].filter((x) => !before.has(x)).concat([...before].filter((x) => !after.has(x)));
+  return changed.every((x) => x === uid);
+}
+
+const Firestore = {
+  async getDocument(path) {
+    log("fs", `GET ${path}`);
+    const total = latency();
+    await sleep(total / 2);
+    if (settings.offline) {
+      await sleep(total / 2);
+      log("fs", `  → ${path}: error (unavailable, offline)`, true);
+      throw firestoreError("unavailable", "Failed to get document because the client is offline.");
+    }
+    // The request reaches the server here, so the rules and the data are read at this moment.
+    if (!checkRules("get", path)) {
+      await sleep(total / 2);
+      log("fs", `  → ${path}: PERMISSION_DENIED`, true);
+      throw firestoreError("permission-denied", "Missing or insufficient permissions.");
+    }
+    const data = readDoc(path);
+    await sleep(total / 2);
+    log("fs", `  → ${path}: ${data ? "found" : "does not exist"}`, !data);
+    return data; // snapshot.data() is nil when the doc does not exist
+  },
+  setData(path, data) {
+    log("fs", `SET ${path} ${JSON.stringify(data, fvReplacer)}`);
+    return this._write(path, () => data);
+  },
+  updateData(path, fields) {
+    log("fs", `UPDATE ${path} ${JSON.stringify(fields, fvReplacer)}`);
+    return this._write(path, (existing) => {
+      if (!existing) throw firestoreError("not-found", "No document to update");
+      const next = structuredClone(existing);
+      for (const [k, v] of Object.entries(fields)) {
+        if (v && v.__op === "arrayUnion") next[k] = [...(next[k] || []), ...v.values.filter((x) => !(next[k] || []).includes(x))];
+        else if (v && v.__op === "arrayRemove") next[k] = (next[k] || []).filter((x) => !v.values.includes(x));
+        else next[k] = v;
+      }
+      return next;
+    });
+  },
+  async _write(path, build) {
+    const total = latency();
+    if (settings.offline) {
+      // Real Firestore queues offline writes and only calls the completion once it syncs.
+      log("fs", "  … offline: write queued until the network is back");
+      await waitUntilOnline();
+    }
+    await sleep(total / 2);
+    const fail = async (code, msg, text) => {
+      await sleep(total / 2);
+      log("fs", `  → ${path}: ${text}`, true);
+      throw firestoreError(code, msg);
+    };
+    if (settings.failWrites) return fail("permission-denied", "Simulated write failure", "write failed (simulated)");
+    const [col, id] = path.split("/");
+    let next;
+    try { next = build(db.firestore[col] && db.firestore[col][id]); }
+    catch (e) { return fail(e.code || "unknown", e.message, e.code || "error"); }
+    const resolved = Object.fromEntries(Object.entries(next).map(([k, v]) => [k, v === SERVER_TIMESTAMP ? new Date().toISOString() : v]));
+    if (!checkRules("set", path, resolved)) return fail("permission-denied", "Missing or insufficient permissions.", "PERMISSION_DENIED");
+    db.firestore[col] = db.firestore[col] || {};
+    db.firestore[col][id] = resolved;
+    saveDB();
+    refreshPanel();
+    this._notify(col);
+    await sleep(total / 2);
+    log("fs", `  → ${path}: written`);
+  },
+
+  // Collection snapshot listeners (addSnapshotListener)
+  _listeners: new Set(),
+  addSnapshotListener(col, cb) {
+    log("fs", `LISTEN ${col}`);
+    const handle = { col, cb, remove: () => { this._listeners.delete(handle); log("fs", `STOP LISTENING ${col}`); } };
+    this._listeners.add(handle);
+    sleep(latency()).then(() => {
+      if (!this._listeners.has(handle)) return;
+      if (!checkRules("list", `${col}/x`)) { log("fs", `  → ${col}: PERMISSION_DENIED`, true); cb(null, firestoreError("permission-denied")); return; }
+      this._deliver(handle);
+    });
+    return handle;
+  },
+  _deliver(handle) {
+    const docs = Object.entries(db.firestore[handle.col] || {}).map(([id, data]) => ({ id, data: structuredClone(data) }));
+    handle.cb(docs, null);
+  },
+  _notify(col) {
+    for (const h of [...this._listeners]) if (h.col === col) this._deliver(h);
+  },
+  newDocumentId() { return randomUid().slice(0, 20); },
+};
+
+/* =====================================================================
+   Mock Firebase Storage (+ storage.rules)
+   ===================================================================== */
+const Storage = {
+  async putData(path, dataUrl) {
+    log("fs", `STORAGE PUT ${path} (${Math.round(dataUrl.length * 0.75 / 1024)} KB)`);
+    await sleep(latency());
+    if (settings.offline) { log("fs", `  → ${path}: upload failed (offline)`, true); throw firestoreError("unavailable"); }
+    if (db.auth.currentUid === null) { log("fs", `  → ${path}: unauthorized`, true); throw firestoreError("unauthorized"); }
+    if (db.storage[path]) { log("fs", `  → ${path}: unauthorized (no overwrites)`, true); throw firestoreError("unauthorized"); }
+    db.storage[path] = dataUrl;
+    saveDB();
+    log("fs", `  → ${path}: uploaded`);
+  },
+  async downloadURL(path) {
+    await sleep(latency() / 3);
+    return db.storage[path];
+  },
+};
+
+// Stand-in for UIImage.jpegData(compressionQuality: 0.7), downscaled so it fits in localStorage.
+function jpegDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/jpeg", 0.7));
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* =====================================================================
+   Port of RoadFix/Models/AppUser.swift
+   ===================================================================== */
+class AppUser {
+  static citizenRole = "citizen";
+  static staffRole = "staff";
+  constructor(id, email, role) { this.id = id; this.email = email; this.role = role; }
+  get isStaff() { return this.role === AppUser.staffRole; }
+}
+
+/* =====================================================================
+   Port of RoadFix/Auth/AuthViewModel.swift (same control flow)
+   ===================================================================== */
+class AuthViewModel {
+  constructor(onChange) {
+    this.currentUser = null;
+    this.isLoading = true;
+    this.errorMessage = null;
+    this.isSubmitting = false;
+    this._isCreatingAccount = false;
+    this._onChange = onChange;
+    this._dead = false;
+    this.authStateHandle = Auth.addStateDidChangeListener((user) => {
+      if (this._dead) return; // [weak self]
+      if (user) {
+        this.fetchUserProfile(user.uid);
+      } else {
+        this.currentUser = null;
+        this.isLoading = false;
+        this._publish();
+      }
+    });
+  }
+
+  deinit() {
+    this._dead = true;
+    Auth.removeStateDidChangeListener(this.authStateHandle);
+  }
+
+  _publish() { if (!this._dead) this._onChange(); }
+
+  fetchUserProfile(uid) {
+    Firestore.getDocument(`users/${uid}`)
+      .catch(() => null)
+      .then((data) => {
+        if (this._dead) return;
+        if (!data || typeof data.email !== "string" || typeof data.role !== "string") {
+          this.errorMessage = "Could not load your account profile.";
+          this.currentUser = null;
+          if (!this._isCreatingAccount) this.isSubmitting = false;
+          log("vm", "fetchUserProfile → no profile, currentUser = nil", true);
+        } else {
+          this.currentUser = new AppUser(uid, data.email, data.role);
+          this.isSubmitting = false;
+          log("vm", `fetchUserProfile → currentUser = ${data.email} (${data.role})`);
+        }
+        this.isLoading = false; // defer
+        this._publish();
+      });
+  }
+
+  signIn(email, password) {
+    this.errorMessage = null;
+    this.isSubmitting = true;
+    this._publish();
+    Auth.signIn(email, password).catch((error) => {
+      if (this._dead) return;
+      this.errorMessage = this.mapAuthError(error);
+      this.isSubmitting = false;
+      this._publish();
+    });
+  }
+
+  signUp(email, password, staffCode) {
+    this.errorMessage = null;
+    this.isSubmitting = true;
+    this._isCreatingAccount = true;
+    this._publish();
+    Auth.createUser(email, password).then(
+      (firebaseUser) => {
+        if (this._dead) return;
+        this.resolveRole(staffCode, (role) => {
+          this.createUserProfile(firebaseUser.uid, email, role, firebaseUser);
+        });
+      },
+      (error) => {
+        if (this._dead) return;
+        this.errorMessage = this.mapAuthError(error);
+        this.finishSubmitting();
+        this._publish();
+      }
+    );
+  }
+
+  finishSubmitting() {
+    this.isSubmitting = false;
+    this._isCreatingAccount = false;
+  }
+
+  resolveRole(staffCode, completion) {
+    if (staffCode == null || staffCode.trim() === "") {
+      completion(AppUser.citizenRole);
+      return;
+    }
+    Firestore.getDocument("config/staffInviteCode")
+      .catch(() => null)
+      .then((data) => {
+        const storedCode = data && typeof data.code === "string" ? data.code : null;
+        const role = storedCode === staffCode ? AppUser.staffRole : AppUser.citizenRole;
+        log("vm", `resolveRole → "${role}"${role === "citizen" ? " (code did not match)" : ""}`);
+        completion(role);
+      });
+  }
+
+  createUserProfile(uid, email, role, createdUser) {
+    const data = { email, role, createdAt: FieldValue.serverTimestamp() };
+    Firestore.setData(`users/${uid}`, data).then(
+      () => {
+        if (this._dead) return;
+        this.currentUser = new AppUser(uid, email, role);
+        this.errorMessage = null;
+        this.finishSubmitting();
+        log("vm", `createUserProfile → currentUser = ${email} (${role})`);
+        this._publish();
+      },
+      () => {
+        if (this._dead) return;
+        this.errorMessage = "Could not finish creating your account. Try again.";
+        log("vm", "createUserProfile failed → deleting auth user + signing out", true);
+        createdUser.delete(null);
+        Auth.signOut();
+        this.finishSubmitting();
+        this._publish();
+      }
+    );
+  }
+
+  signOut() {
+    Auth.signOut();
+    this.currentUser = null;
+    this.errorMessage = null;
+    this.finishSubmitting();
+    this._publish();
+  }
+
+  mapAuthError(error) {
+    switch (error.codeName) {
+      case "wrongPassword":
+      case "invalidCredential":
+      case "userNotFound":
+        return "Incorrect email or password.";
+      case "emailAlreadyInUse":
+        return "An account with that email already exists.";
+      case "invalidEmail":
+        return "That email address doesn't look right.";
+      case "weakPassword":
+        return "Password must be at least 6 characters.";
+      case "networkError":
+        return "Network error. Check your connection and try again.";
+      default:
+        return "Something went wrong, try again.";
+    }
+  }
+}
+
+/* =====================================================================
+   Port of RoadFix/Models/Report.swift
+   ===================================================================== */
+// Keys are the raw values stored in Firestore; `title` is what the UI shows.
+const ReportCategory = {
+  pothole:     { title: "Pothole", systemImage: "triangle-alert" },
+  streetlight: { title: "Broken Streetlight", systemImage: "lightbulb-off" },
+  sidewalk:    { title: "Damaged Sidewalk", systemImage: "footprints" },
+  markings:    { title: "Faded Road Markings", systemImage: "route" },
+  other:       { title: "Other", systemImage: "circle-help" },
+};
+const ReportStatus = { reported: "Reported", inProgress: "In Progress", resolved: "Resolved" };
+const statusColor = (s) => ({ reported: "var(--ios-red)", inProgress: "var(--ios-orange)", resolved: "var(--ios-green)" })[s];
+const isUpvoted = (report, uid) => !!uid && report.upvoterIds.includes(uid);
+
+/* =====================================================================
+   Port of RoadFix/Services/ReportService.swift (Firestore + Storage)
+   ===================================================================== */
+class ReportService {
+  constructor() {
+    this.reports = [];
+    this._subs = new Set();
+    this.listener = null;
+  }
+  subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); }
+  _publish() { for (const fn of [...this._subs]) fn(); refreshPanel(); }
+
+  startListening() {
+    if (this.listener) return;
+    this.listener = Firestore.addSnapshotListener("reports", (docs, error) => {
+      if (!docs) { log("vm", `Reports listener error: ${error && error.message}`, true); return; }
+      this.reports = docs
+        .map((d) => ReportService.report(d.id, d.data))
+        .filter(Boolean)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      this._publish();
+    });
+  }
+
+  stopListening() {
+    if (this.listener) { this.listener.remove(); this.listener = null; }
+  }
+
+  submitReport(category, description, image, coordinate, completion) {
+    const uid = db.auth.currentUid; // Auth.auth().currentUser?.uid
+    if (!uid) { completion(false); return; }
+    const id = Firestore.newDocumentId();
+    this.uploadPhoto(image, id, (photoURL) => {
+      const data = {
+        category, description, latitude: coordinate.latitude, longitude: coordinate.longitude,
+        status: "reported", upvoterIds: [], reporterId: uid, createdAt: FieldValue.serverTimestamp(),
+      };
+      if (photoURL) data.photoURL = photoURL;
+      Firestore.setData(`reports/${id}`, data).then(() => completion(true), () => completion(false));
+    });
+  }
+
+  // A second tap removes the upvote, so each user counts at most once.
+  toggleUpvote(report) {
+    const uid = db.auth.currentUid;
+    if (!uid) return;
+    const change = isUpvoted(report, uid) ? FieldValue.arrayRemove([uid]) : FieldValue.arrayUnion([uid]);
+    Firestore.updateData(`reports/${report.id}`, { upvoterIds: change }).catch(() => {});
+  }
+
+  // firestore.rules only lets staff change a report's status.
+  updateStatus(report, status) {
+    Firestore.updateData(`reports/${report.id}`, { status }).catch(() => {});
+  }
+
+  // The report is still saved (without a photo) if the upload fails.
+  uploadPhoto(image, reportID, completion) {
+    if (!image) { completion(null); return; }
+    const path = `reports/${reportID}.jpg`;
+    Storage.putData(path, image).then(() => Storage.downloadURL(path)).then((url) => completion(url), () => completion(null));
+  }
+
+  static report(id, d) {
+    if (!ReportCategory[d.category] || typeof d.description !== "string" || typeof d.latitude !== "number" ||
+        typeof d.longitude !== "number" || !ReportStatus[d.status] || typeof d.reporterId !== "string") return null;
+    return {
+      id, category: d.category, description: d.description, photoURL: d.photoURL || null,
+      latitude: d.latitude, longitude: d.longitude, status: d.status,
+      upvoterIds: Array.isArray(d.upvoterIds) ? d.upvoterIds : [], reporterId: d.reporterId,
+      createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
+      get upvoteCount() { return this.upvoterIds.length; },
+    };
+  }
+}
+
+/* =====================================================================
+   Simulated CoreLocation + port of RoadFix/Services/LocationManager.swift
+   ===================================================================== */
+const LocationAuth = {
+  sessionGrant: false, // "Allow Once" lasts until the app is relaunched
+  status() {
+    if (settings.locationPermission === "whenInUse" || this.sessionGrant) return "authorizedWhenInUse";
+    return settings.locationPermission; // notDetermined | denied
+  },
+  managers: new Set(),
+  uiSubs: new Set(), // views that show the permission (Settings tab)
+  set(perm, { once = false } = {}) {
+    if (once) this.sessionGrant = true; else settings.locationPermission = perm;
+    saveSettings();
+    const s = this.status();
+    $("locPerm").value = settings.locationPermission;
+    log("loc", `authorizationStatus → ${s}`);
+    for (const m of [...this.managers]) m.locationManagerDidChangeAuthorization(s);
+    for (const fn of [...this.uiSubs]) fn();
+  },
+  requestWhenInUse() {
+    if (settings.oldBuild) {
+      log("loc", "This app has attempted to access privacy-sensitive data without a usage description. The app's Info.plist must contain an “NSLocationWhenInUseUsageDescription” key (request ignored)", true);
+      return;
+    }
+    if (this.status() !== "notDetermined") return;
+    showAlert({
+      title: "Allow “RoadFix” to use your location?",
+      message: "RoadFix uses your location to pin the issue you are reporting on the map.",
+      buttons: [
+        { title: "Allow Once", action: () => this.set("whenInUse", { once: true }) },
+        { title: "Allow While Using App", bold: true, action: () => this.set("whenInUse") },
+        { title: "Don’t Allow", action: () => this.set("denied") },
+      ],
+    });
+  },
+  simulatedCoordinate() {
+    if (settings.locationPreset === "applepark") return { latitude: 37.33490, longitude: -122.00900 };
+    return { latitude: 47.0235 + (Math.random() - 0.5) * 0.008, longitude: 28.8340 + (Math.random() - 0.5) * 0.012 };
+  },
+};
+
+class LocationManager {
+  constructor(onChange) {
+    this.currentLocation = null;
+    this.authorizationStatus = "notDetermined";
+    this._onChange = onChange;
+    this._dead = false;
+    LocationAuth.managers.add(this);
+    // CLLocationManager calls the delegate once right after it's set up.
+    setTimeout(() => this.locationManagerDidChangeAuthorization(LocationAuth.status()), 0);
+  }
+  deinit() { this._dead = true; LocationAuth.managers.delete(this); }
+  requestLocation() {
+    LocationAuth.requestWhenInUse();
+    this._managerRequestLocation();
+  }
+  _managerRequestLocation() {
+    const s = LocationAuth.status();
+    if (s !== "authorizedWhenInUse") {
+      if (s === "denied") setTimeout(() => this.didFailWithError("The operation couldn’t be completed. (kCLErrorDomain error 1.)"), 50);
+      return;
+    }
+    setTimeout(() => {
+      if (this._dead) return;
+      this.didUpdateLocations(LocationAuth.simulatedCoordinate());
+    }, 700);
+  }
+  locationManagerDidChangeAuthorization(status) {
+    if (this._dead) return;
+    this.authorizationStatus = status;
+    this._onChange();
+    if (status === "authorizedWhenInUse") this._managerRequestLocation();
+  }
+  didUpdateLocations(coord) {
+    this.currentLocation = coord;
+    log("loc", `didUpdateLocations → ${coord.latitude.toFixed(5)}, ${coord.longitude.toFixed(5)}`);
+    this._onChange();
+  }
+  didFailWithError(msg) { log("loc", `Location error: ${msg}`, true); }
+}
+
+/* =====================================================================
+   Tiny DOM helpers + SwiftUI-ish components
+   ===================================================================== */
+function h(tag, props = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") el.className = v;
+    else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, "");
+    else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  for (const c of children.flat()) if (c != null && c !== false) el.append(c);
+  return el;
+}
+const svg = (markup) => { const t = document.createElement("template"); t.innerHTML = markup.trim(); return t.content.firstChild; };
+const chevronLeft = () => svg('<svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+const chevronRight = () => svg('<svg width="9" height="15" viewBox="0 0 9 15"><path d="m1.5 1.5 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+const spinner = () => {
+  let bars = "";
+  for (let i = 0; i < 8; i++) bars += `<rect x="9" y="1" width="2" height="5.5" rx="1" fill="currentColor" opacity="${(0.25 + (i / 8) * 0.75).toFixed(2)}" transform="rotate(${i * 45} 10 10)"/>`;
+  return svg(`<svg class="spinner" viewBox="0 0 20 20">${bars}</svg>`);
+};
+// SF Symbol stand-ins (Lucide). Wrapped in a span because createIcons swaps the <i>.
+const icon = (name) => h("span", { style: { display: "inline-grid" } }, h("i", { "data-lucide": name }));
+function refreshIcons() { if (window.lucide) try { lucide.createIcons(); } catch { /* ignore */ } }
+
+function Page({ backAction } = {}) {
+  const navbar = h("div", { class: "navbar" });
+  if (backAction) navbar.append(h("button", { class: "glass-btn icon back-btn", "aria-label": "Back", onclick: backAction }, chevronLeft()));
+  const body = h("div", { class: "body" });
+  const el = h("div", { class: "page" + (backAction ? " pushed" : "") }, navbar, body);
+  return { el, body };
+}
+function StatusBadge(status) {
+  const c = statusColor(status);
+  return h("span", { class: "badge", style: { color: c, background: `color-mix(in srgb, ${c} 20%, transparent)` } }, ReportStatus[status]);
+}
+function formatDate(d) {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " at " +
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+/* ---------- .sheet / Menu / alert presenters (inside the phone) ---------- */
+function presentSheet(content, { plain = false, onDismiss } = {}) {
+  const layer = h("div", { class: "sheet-layer" },
+    h("div", { class: "sheet-backdrop" }),
+    h("div", { class: "sheet" + (plain ? " plain-bg" : "") }, h("div", { class: "sheet-grabber" }), content));
+  const host = document.querySelector("#app .tabview") || $("app");
+  host.append(layer);
+  refreshIcons();
+  layer.getBoundingClientRect();
+  layer.classList.add("shown");
+  let gone = false;
+  return {
+    dismiss() {
+      if (gone) return; gone = true;
+      layer.classList.remove("shown");
+      setTimeout(() => layer.remove(), 420);
+      onDismiss && onDismiss();
+    },
+  };
+}
+function showMenu(anchor, items) {
+  const screenRect = $("screen").getBoundingClientRect();
+  const r = anchor.getBoundingClientRect();
+  const z = screenRect.width / 393; // device zoom factor
+  const layer = h("div", { class: "menu-layer", onclick: (e) => { if (e.target === layer) layer.remove(); } });
+  const menu = h("div", { class: "menu" });
+  for (const it of items) {
+    if (it === "sep") { menu.append(h("div", { class: "menu-sep" })); continue; }
+    if (it.static) { menu.append(h("div", { class: "menu-item static" }, it.title)); continue; }
+    menu.append(h("button", {
+      class: "menu-item" + (it.destructive ? " destructive" : ""),
+      onclick: () => { layer.remove(); it.action(); },
+    }, h("span", { class: "check" }, it.checked ? icon("check") : null), h("span", { class: "grow" }, it.title), it.icon ? icon(it.icon) : null));
+  }
+  const right = (screenRect.right - r.right) / z;
+  const top = (r.bottom - screenRect.top) / z + 8;
+  Object.assign(menu.style, { right: `${Math.max(12, right)}px`, top: `${top}px` });
+  layer.append(menu);
+  $("screen").append(layer);
+  refreshIcons();
+}
+function showAlert({ title, message, buttons }) {
+  const layer = h("div", { class: "alert-layer" },
+    h("div", { class: "alert" }, h("h3", {}, title), h("p", {}, message),
+      buttons.map((b) => h("button", { class: b.bold ? "bold" : "", onclick: () => { layer.remove(); b.action(); } }, b.title))));
+  $("screen").append(layer);
+}
+
+/* =====================================================================
+   Views (ports of the SwiftUI files)
+   ===================================================================== */
+
+// ---------- RoadFix/Auth/AuthComponents.swift ----------
+const roadLanes = () => svg('<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7.5 3 4 21"/><path d="M16.5 3 20 21"/><path d="M12 4v3M12 10.5v3M12 17v3"/></svg>');
+
+// AuthBackground: blurred, non-interactive map of Chișinău
+function AuthBackground() {
+  const mapEl = h("div", { class: "auth-map" });
+  const el = h("div", { class: "auth-bg" }, mapEl, h("div", { class: "auth-dim" }),
+    h("div", { class: "auth-attrib" }, "© ", h("a", { href: "https://www.openstreetmap.org/copyright", target: "_blank" }, "OpenStreetMap"), " contributors"));
+  let map = null;
+  return {
+    el,
+    mount() {
+      if (map || !window.L) return;
+      map = L.map(mapEl, {
+        zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false,
+        doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false,
+      }).setView([47.0245, 28.8322], 15);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    },
+    deinit() { if (map) map.remove(); },
+  };
+}
+
+function AuthHeader(title, subtitle) {
+  return h("div", { class: "auth-header" },
+    h("div", { class: "app-mark" }, roadLanes()),
+    h("h1", { class: "large-title" }, title),
+    h("div", { class: "auth-subtitle" }, subtitle));
+}
+
+// AuthField: SF Symbol + field (+ show/hide for passwords). `autocomplete`
+// mirrors .textContentType so password managers can fill it.
+function AuthField({ symbol, placeholder, secure = false, email = false, autocomplete = "off", onInput, onSubmit }) {
+  const input = h("input", {
+    class: "auth-input", placeholder, type: secure ? "password" : email ? "email" : "text",
+    autocapitalize: "none", autocomplete, spellcheck: "false",
+    enterkeyhint: onSubmit && onSubmit.label, // .submitLabel
+  });
+  input.addEventListener("input", () => onInput(input.value));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && onSubmit) { e.preventDefault(); onSubmit.action(); } });
+  const row = h("div", { class: "auth-row" }, h("span", { class: "row-sym" }, icon(symbol)), input);
+  if (secure) {
+    let revealed = false;
+    const eye = h("button", { class: "eye-btn", type: "button", "aria-label": "Show password" });
+    const renderEye = () => { eye.replaceChildren(icon(revealed ? "eye-off" : "eye")); refreshIcons(); };
+    eye.addEventListener("click", () => {
+      revealed = !revealed;
+      input.type = revealed ? "text" : "password";
+      eye.setAttribute("aria-label", revealed ? "Hide password" : "Show password");
+      renderEye();
+      input.focus(); // swapping SecureField/TextField drops focus; put it back
+    });
+    renderEye();
+    row.append(eye);
+  }
+  return { el: row, input };
+}
+const AuthCard = (...rows) => h("div", { class: "glass-card" },
+  rows.flatMap((r, i) => (i ? [h("div", { class: "auth-divider" }), r.el || r] : [r.el || r])));
+
+function AuthErrorText() {
+  const el = h("div", { class: "auth-error" });
+  return {
+    el,
+    set(msg) {
+      el.style.display = msg ? "" : "none";
+      if (msg && el.dataset.msg !== msg) { el.replaceChildren(icon("triangle-alert"), h("span", {}, msg)); refreshIcons(); }
+      el.dataset.msg = msg || "";
+    },
+  };
+}
+
+function AuthPrimaryButton(title, action) {
+  const label = h("span", {}, title);
+  const spin = spinner();
+  const btn = h("button", { class: "glass-prominent", onclick: action }, label);
+  return {
+    el: btn,
+    set({ isLoading, isEnabled }) {
+      btn.disabled = !isEnabled || isLoading;
+      btn.classList.toggle("loading", isLoading);
+      btn.replaceChildren(isLoading ? spin : label);
+    },
+  };
+}
+
+// AuthScreen page: transparent page (the shared map shows through) + scrollable centred stack
+function AuthPage({ backAction } = {}) {
+  const navbar = h("div", { class: "navbar" });
+  if (backAction) navbar.append(h("button", { class: "glass-btn icon back-btn", "aria-label": "Back", onclick: backAction }, chevronLeft()));
+  const stack = h("div", { class: "auth-stack" });
+  const el = h("div", { class: "page auth" + (backAction ? " pushed" : "") }, navbar, h("div", { class: "auth-scroll" }, stack));
+  return { el, stack };
+}
+
+// RoadFix/Auth/SignUpView.swift
+function SignUpView(vm, onBack) {
+  const s = { email: "", password: "", confirmPassword: "", isStaff: false, staffCode: "" };
+  const canSubmit = () =>
+    s.email.includes("@") && s.email.includes(".") && s.password.length >= 6 && s.password === s.confirmPassword;
+  const submit = () => {
+    if (!canSubmit() || vm.isSubmitting) return;
+    document.activeElement && document.activeElement.blur(); // focus = nil
+    vm.signUp(s.email, s.password, s.isStaff ? s.staffCode : null);
+  };
+
+  const emailF = AuthField({ symbol: "mail", placeholder: "Email", email: true, autocomplete: "username",
+    onInput: (v) => { s.email = v; update(); }, onSubmit: { label: "next", action: () => pwF.input.focus() } });
+  const pwF = AuthField({ symbol: "lock", placeholder: "Password (min 6 characters)", secure: true, autocomplete: "new-password",
+    onInput: (v) => { s.password = v; update(); }, onSubmit: { label: "next", action: () => confirmF.input.focus() } });
+  const confirmF = AuthField({ symbol: "lock-keyhole", placeholder: "Confirm Password", secure: true, autocomplete: "new-password",
+    onInput: (v) => { s.confirmPassword = v; update(); }, onSubmit: { label: "go", action: () => (s.isStaff ? codeF.input.focus() : submit()) } });
+  const codeF = AuthField({ symbol: "key-round", placeholder: "Staff invite code",
+    onInput: (v) => { s.staffCode = v; }, onSubmit: { label: "go", action: submit } });
+
+  const disclosure = h("div", { class: "disclosure auth-disclosure" },
+    h("button", { class: "disclosure-label", onclick: () => { s.isStaff = !s.isStaff; disclosure.classList.toggle("open", s.isStaff); } },
+      h("span", {}, "I'm staff"), chevronRight()),
+    h("div", { class: "disclosure-content", style: { paddingTop: "8px" } }, AuthCard(codeF)));
+  disclosure.querySelector(".disclosure-label svg").style.color = "var(--ios-label)"; // .tint(.primary)
+
+  const err = AuthErrorText();
+  const button = AuthPrimaryButton("Create Account", submit);
+  const page = AuthPage({ backAction: onBack });
+  page.stack.append(
+    h("div", { class: "auth-spacer" }),
+    AuthHeader("Create Account", "Join RoadFix to report issues around your city."),
+    AuthCard(emailF, pwF, confirmF),
+    disclosure,
+    err.el,
+    button.el,
+    h("div", { class: "auth-spacer" }));
+
+  function update() {
+    button.set({ isLoading: vm.isSubmitting, isEnabled: canSubmit() });
+    err.set(vm.errorMessage);
+  }
+  update();
+  return { el: page.el, update };
+}
+
+// RoadFix/Auth/LoginView.swift
+function LoginView(vm) {
+  const s = { email: "", password: "", showSignUp: false };
+  const canSubmit = () => !!(s.email && s.password);
+  const submit = () => {
+    if (!canSubmit() || vm.isSubmitting) return;
+    document.activeElement && document.activeElement.blur(); // focus = nil
+    vm.signIn(s.email, s.password);
+  };
+
+  const emailF = AuthField({ symbol: "mail", placeholder: "Email", email: true, autocomplete: "username",
+    onInput: (v) => { s.email = v; update(); }, onSubmit: { label: "next", action: () => pwF.input.focus() } });
+  const pwF = AuthField({ symbol: "lock", placeholder: "Password", secure: true, autocomplete: "current-password",
+    onInput: (v) => { s.password = v; update(); }, onSubmit: { label: "go", action: submit } });
+  const err = AuthErrorText();
+  const button = AuthPrimaryButton("Log In", submit);
+
+  const root = AuthPage();
+  root.stack.append(
+    h("div", { class: "auth-spacer" }),
+    AuthHeader("RoadFix", "Report road issues in your city."),
+    AuthCard(emailF, pwF),
+    err.el,
+    button.el,
+    h("div", { class: "auth-spacer" }),
+    h("div", { class: "auth-footer" }, h("span", { class: "secondary" }, "New to RoadFix?"), h("button", { onclick: () => push() }, "Create Account")));
+
+  const background = AuthBackground();
+  const stack = h("div", { class: "navstack" }, background.el, root.el);
+  let signUp = null;
+
+  function push() {
+    if (signUp) return;
+    s.showSignUp = true;
+    signUp = SignUpView(vm, pop);
+    signUp.el.classList.add("enter");
+    stack.append(signUp.el);
+    refreshIcons();
+    signUp.el.getBoundingClientRect(); // force layout so the transition runs
+    signUp.el.classList.remove("enter");
+    root.el.classList.add("covered");
+  }
+  function pop() {
+    if (!signUp) return;
+    s.showSignUp = false;
+    const leaving = signUp.el;
+    signUp = null;
+    leaving.classList.add("enter");
+    root.el.classList.remove("covered");
+    setTimeout(() => leaving.remove(), 450);
+  }
+  function update() {
+    button.set({ isLoading: vm.isSubmitting, isEnabled: canSubmit() });
+    err.set(vm.errorMessage);
+    signUp && signUp.update();
+  }
+  function fill(email, password) {
+    pop();
+    emailF.input.value = s.email = email;
+    pwF.input.value = s.password = password;
+    update();
+  }
+  update();
+  return {
+    el: stack, update, fill,
+    mounted() { background.mount(); refreshIcons(); },
+    destroy() { background.deinit(); },
+  };
+}
+
+// RoadFix/Views/MapView.swift
+function MapView(reportService, vm, { onNewReport, trailingToolbar }) {
+  const mapEl = h("div", { class: "map" });
+  const fab = h("button", { class: "fab", "aria-label": "New report", onclick: onNewReport }, icon("plus"));
+  const el = h("div", { class: "map-page" },
+    mapEl,
+    h("div", { class: "map-top" }),
+    // .navigationBarTitleDisplayMode(.inline) + leading "RoadFix" / trailing account menu
+    h("div", { class: "map-toolbar" }, h("h1", { class: "title-inline" }, "RoadFix"), trailingToolbar),
+    fab);
+
+  let map = null, markers = null, userMoved = false, lastCount = -1;
+
+  function mount() {
+    if (map || !window.L) return;
+    map = L.map(mapEl, { zoomControl: false, attributionControl: true });
+    map.attributionControl.setPrefix(false);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    markers = L.layerGroup().addTo(map);
+    map.setView([47.0235, 28.834], 14); // until the first snapshot arrives
+    map.on("dragstart", () => { userMoved = true; });
+    mapEl.addEventListener("wheel", () => { userMoved = true; }, { passive: true });
+    render();
+  }
+
+  function render() {
+    if (!map) return;
+    markers.clearLayers();
+    for (const report of reportService.reports) {
+      const cat = ReportCategory[report.category];
+      const node = h("div", { class: "pin" },
+        h("button", { class: "pin-dot", style: { background: statusColor(report.status) } }, icon(cat.systemImage)),
+        h("div", { class: "pin-label" }, cat.title));
+      const m = L.marker([report.latitude, report.longitude], {
+        icon: L.divIcon({ className: "pin-icon", html: node, iconSize: [140, 50], iconAnchor: [70, 30] }),
+      });
+      m.on("click", () => presentReportDetail(report.id, reportService, vm));
+      markers.addLayer(m);
+    }
+    refreshIcons();
+    // MapCameraPosition .automatic frames all annotations until the user moves the map.
+    if (!userMoved && reportService.reports.length && reportService.reports.length !== lastCount) {
+      const b = L.latLngBounds(reportService.reports.map((r) => [r.latitude, r.longitude]));
+      map.fitBounds(b, { paddingTopLeft: [50, 150], paddingBottomRight: [50, 150], maxZoom: 16, animate: lastCount > 0 });
+    }
+    lastCount = reportService.reports.length;
+  }
+
+  const unsub = reportService.subscribe(render);
+  return {
+    el, mount, render,
+    invalidate() { if (map) map.invalidateSize(); },
+    deinit() { unsub(); if (map) map.remove(); },
+  };
+}
+
+// .sheet(item: $selectedReport) { ReportDetailView(reportID:) } — used by Map and My Reports
+function presentReportDetail(reportID, reportService, vm) {
+  let sheet = null;
+  const view = ReportDetailView(reportID, reportService, vm, () => sheet && sheet.dismiss());
+  sheet = presentSheet(view.el, { plain: true, onDismiss: () => view.deinit() });
+}
+
+// RoadFix/Views/NewReportView.swift
+function NewReportView(reportService, dismiss) {
+  const s = { category: "pothole", description: "", selectedImage: null, isSubmitting: false };
+  const locationManager = new LocationManager(() => update());
+
+  const cancel = h("button", { class: "glass-btn", onclick: dismiss }, "Cancel");
+  const submitBtn = h("button", { class: "glass-btn prominent", onclick: submit }, "Submit");
+
+  // Section("Photo") { PhotosPicker }
+  const fileInput = h("input", { type: "file", accept: "image/*", style: { display: "none" } });
+  const photoCell = h("div", { class: "cell tappable", onclick: () => fileInput.click() });
+  fileInput.addEventListener("change", () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    jpegDataURL(f).then((url) => { s.selectedImage = url; renderPhoto(); }, () => {});
+  });
+  function renderPhoto() {
+    photoCell.replaceChildren(s.selectedImage
+      ? h("img", { src: s.selectedImage, style: { maxHeight: "200px", maxWidth: "100%", display: "block", margin: "0 auto" } })
+      : h("span", { class: "label tint" }, icon("camera"), "Add a photo"));
+    refreshIcons();
+  }
+  renderPhoto();
+
+  // Section("Category") { Picker } (menu style)
+  const catValue = h("span", { class: "secondary label" });
+  const catCell = h("div", { class: "cell tappable" }, h("span", {}, "Category"), h("span", { class: "spacer" }), catValue);
+  catCell.addEventListener("click", () => showMenu(catValue, Object.entries(ReportCategory).map(([key, c]) => ({
+    title: c.title, icon: c.systemImage, checked: key === s.category,
+    action: () => { s.category = key; renderCategory(); },
+  }))));
+  function renderCategory() {
+    catValue.replaceChildren(ReportCategory[s.category].title, icon("chevrons-up-down"));
+    refreshIcons();
+  }
+  renderCategory();
+
+  // Section("Description") { TextField(axis: .vertical).lineLimit(3...6) }
+  const ta = h("textarea", { class: "ta", rows: 3, placeholder: "What's the issue?" });
+  ta.addEventListener("input", () => {
+    s.description = ta.value;
+    ta.rows = Math.min(6, Math.max(3, ta.value.split("\n").length));
+    update();
+  });
+
+  // Section("Location")
+  const locGroup = h("div", { class: "cell-group" });
+
+  const section = (title, ...cells) => h("div", { class: "section" }, h("div", { class: "section-header" }, title), h("div", { class: "cell-group" }, ...cells));
+  const el = h("div", { style: { display: "flex", flexDirection: "column", height: "100%" } },
+    h("div", { class: "sheet-toolbar" }, cancel, submitBtn),
+    h("div", { class: "sheet-scroll" },
+      h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "New Report")),
+      section("Photo", photoCell),
+      section("Category", catCell),
+      section("Description", h("div", { class: "cell" }, ta)),
+      h("div", { class: "section" }, h("div", { class: "section-header" }, "Location"), locGroup),
+      fileInput));
+
+  let lastLocState = null;
+  function update() {
+    const loc = locationManager.currentLocation;
+    const denied = locationManager.authorizationStatus === "denied";
+    const locState = loc ? `loc:${loc.latitude},${loc.longitude}` : denied ? "denied" : "fetching";
+    if (locState !== lastLocState) {
+      lastLocState = locState;
+      if (loc) {
+        locGroup.replaceChildren(h("div", { class: "cell" }, h("span", { class: "caption secondary" }, `Lat: ${loc.latitude.toFixed(5)}, Lng: ${loc.longitude.toFixed(5)}`)));
+      } else if (denied) {
+        locGroup.replaceChildren(
+          h("div", { class: "cell" }, h("span", { class: "caption secondary" }, "Location access is turned off. RoadFix needs your location to pin the issue on the map.")),
+          h("div", { class: "cell button", onclick: openIOSSettings }, "Open Settings"));
+      } else {
+        locGroup.replaceChildren(h("div", { class: "cell" }, h("span", { class: "caption secondary" }, "Fetching current location…")));
+      }
+    }
+    submitBtn.textContent = s.isSubmitting ? "Submitting…" : "Submit";
+    submitBtn.disabled = s.description === "" || !loc || s.isSubmitting;
+  }
+  function submit() {
+    const coordinate = locationManager.currentLocation;
+    if (!coordinate) return;
+    s.isSubmitting = true;
+    update();
+    reportService.submitReport(s.category, s.description, s.selectedImage, coordinate, (success) => {
+      s.isSubmitting = false;
+      if (success) {
+        dismiss();
+      } else {
+        update();
+        showAlert({ title: "Couldn't Submit Report", message: "Check your connection and try again.", buttons: [{ title: "OK", bold: true, action: () => {} }] });
+      }
+    });
+  }
+  update();
+  // .onAppear { locationManager.requestLocation() }
+  setTimeout(() => locationManager.requestLocation(), 350);
+  return { el, deinit() { locationManager.deinit(); } };
+}
+
+// RoadFix/Views/ReportDetailView.swift — looks the report up live by ID
+function ReportDetailView(reportID, reportService, vm, dismiss) {
+  const content = h("div", { class: "sheet-scroll" });
+  const el = h("div", { style: { display: "flex", flexDirection: "column", height: "100%" } },
+    h("div", { class: "sheet-toolbar" }, h("button", { class: "glass-btn", onclick: dismiss }, "Close"), h("span")),
+    content);
+
+  function render() {
+    const report = reportService.reports.find((r) => r.id === reportID);
+    const title = h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "Report Detail"));
+    if (!report) {
+      content.replaceChildren(title, h("div", { class: "unavailable" }, icon("triangle-alert"), h("h2", {}, "Report Unavailable")));
+      refreshIcons();
+      return;
+    }
+    const cat = ReportCategory[report.category];
+    const upvoted = isUpvoted(report, vm.currentUser && vm.currentUser.id);
+    content.replaceChildren(title,
+      h("div", { style: { display: "flex", flexDirection: "column", gap: "16px", padding: "16px" } },
+        report.photoURL ? h("img", { src: report.photoURL, style: { width: "100%", height: "220px", objectFit: "cover", borderRadius: "12px", display: "block" } }) : null,
+        h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
+          h("span", { class: "label", style: { fontSize: "17px", fontWeight: "600" } }, icon(cat.systemImage), cat.title),
+          h("span", { style: { flex: "1" } }),
+          StatusBadge(report.status)),
+        h("div", { class: "body-text" }, report.description),
+        h("div", { class: "caption secondary" }, formatDate(report.createdAt)),
+        h("div", {}, h("button", { class: "btn prominent", onclick: () => reportService.toggleUpvote(report) },
+          icon("thumbs-up"),
+          upvoted ? `Upvoted (${report.upvoteCount})` : `Upvote (${report.upvoteCount})`))));
+    refreshIcons();
+  }
+  const unsub = reportService.subscribe(render);
+  render();
+  return { el, deinit: unsub };
+}
+
+// RoadFix/Views/StaffDashboardView.swift
+function StaffDashboardView(reportService) {
+  const list = h("div", { class: "cell-group" });
+  const el = h("div", { class: "scroll-page" },
+    h("div", { class: "navbar" }),
+    h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "Staff Dashboard")),
+    h("div", { class: "section" }, list));
+  function render() {
+    list.replaceChildren(...reportService.reports.map((report) => {
+      const cat = ReportCategory[report.category];
+      const seg = h("div", { class: "seg" }, Object.entries(ReportStatus).map(([key, title]) =>
+        h("button", { class: key === report.status ? "on" : "", onclick: () => reportService.updateStatus(report, key) }, title)));
+      return h("div", { class: "cell", style: { flexDirection: "column", alignItems: "stretch", gap: "6px", padding: "14px 16px" } },
+        h("div", { style: { display: "flex", alignItems: "center" } },
+          h("span", { class: "label", style: { fontSize: "15px", fontWeight: "600" } }, icon(cat.systemImage), cat.title),
+          h("span", { style: { flex: "1" } }),
+          StatusBadge(report.status)),
+        h("div", { class: "caption secondary", style: { display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden" } }, report.description),
+        seg);
+    }));
+    refreshIcons();
+  }
+  const unsub = reportService.subscribe(render);
+  render();
+  return { el, deinit: unsub };
+}
+
+// RoadFix/Views/MyReportsView.swift
+function MyReportsView(reportService, vm) {
+  const body = h("div");
+  const el = h("div", { class: "scroll-page" },
+    h("div", { class: "navbar" }),
+    h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "My Reports")),
+    body);
+  function render() {
+    const uid = vm.currentUser && vm.currentUser.id;
+    const mine = uid ? reportService.reports.filter((r) => r.reporterId === uid) : [];
+    if (!mine.length) {
+      body.replaceChildren(h("div", { class: "unavailable", style: { paddingTop: "140px" } },
+        icon("inbox"), h("h2", {}, "No Reports Yet"),
+        h("div", { class: "body-text secondary", style: { fontSize: "15px" } }, "Issues you report from the map will show up here.")));
+    } else {
+      body.replaceChildren(h("div", { class: "section" }, h("div", { class: "cell-group" }, mine.map((report) => {
+        const cat = ReportCategory[report.category];
+        return h("div", { class: "cell tappable", style: { gap: "12px" }, onclick: () => presentReportDetail(report.id, reportService, vm) },
+          h("div", { class: "row-icon", style: { background: statusColor(report.status) } }, icon(cat.systemImage)),
+          h("div", { style: { flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" } },
+            h("div", { style: { fontSize: "15px", fontWeight: "600" } }, cat.title),
+            h("div", { class: "caption secondary", style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, report.description),
+            h("div", { class: "secondary", style: { fontSize: "11px" } }, formatDate(report.createdAt))),
+          h("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" } },
+            StatusBadge(report.status),
+            h("span", { class: "caption secondary label", style: { gap: "4px" } }, icon("thumbs-up"), String(report.upvoteCount))));
+      }))));
+    }
+    refreshIcons();
+  }
+  const unsub = reportService.subscribe(render);
+  render();
+  return { el, update: render, deinit: unsub };
+}
+
+// RoadFix/Views/SettingsView.swift
+function SettingsView(vm) {
+  const el = h("div", { class: "scroll-page" });
+  const statusText = () => ({ authorizedWhenInUse: "While Using the App", denied: "Off", notDetermined: "Not Asked Yet" })[LocationAuth.status()];
+  const labeled = (label, value) => h("div", { class: "cell" }, h("span", {}, label), h("span", { class: "spacer" }), h("span", { class: "lc-value" }, value));
+  function render() {
+    const u = vm.currentUser;
+    el.replaceChildren(
+      h("div", { class: "navbar" }),
+      h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "Settings")),
+      h("div", { class: "section" }, h("div", { class: "section-header" }, "Account"), h("div", { class: "cell-group" },
+        labeled("Email", u ? u.email : ""),
+        labeled("Role", u && u.isStaff ? "Staff" : "Citizen"))),
+      h("div", { class: "section" }, h("div", { class: "section-header" }, "Privacy"), h("div", { class: "cell-group" },
+        labeled("Location Access", statusText()),
+        h("div", { class: "cell button", onclick: openIOSSettings }, "Open iOS Settings")),
+        h("div", { class: "section-footer" }, "RoadFix only uses your location while you're creating a report.")),
+      h("div", { class: "section" }, h("div", { class: "section-header" }, "About"), h("div", { class: "cell-group" },
+        labeled("Version", "1.0 (1)"))),
+      h("div", { class: "section" }, h("div", { class: "cell-group" },
+        h("div", { class: "cell button destructive", onclick: () => vm.signOut() }, "Sign Out"))));
+  }
+  LocationAuth.uiSubs.add(render); // .onChange(of: scenePhase) refresh
+  render();
+  return { el, update: render, deinit() { LocationAuth.uiSubs.delete(render); } };
+}
+
+// UIApplication.openSettingsURLString → the iOS Settings app's page for RoadFix
+function openIOSSettings() {
+  const options = [["denied", "Never"], ["notDetermined", "Ask Next Time Or When I Share"], ["whenInUse", "While Using the App"]];
+  const layer = h("div", { class: "ios-settings" });
+  function render() {
+    layer.replaceChildren(
+      h("button", { class: "breadcrumb", onclick: () => { layer.remove(); log("loc", "Back to RoadFix (scenePhase → active)"); for (const fn of [...LocationAuth.uiSubs]) fn(); } }, "◀ RoadFix"),
+      h("div", { class: "navbar", style: { marginTop: "62px" } }),
+      h("div", { class: "title-block" }, h("h1", { class: "large-title" }, "Location")),
+      h("div", { class: "section" }, h("div", { class: "section-header" }, "Allow Location Access"), h("div", { class: "cell-group" },
+        options.map(([value, title]) => h("div", {
+          class: "cell tappable",
+          onclick: () => { LocationAuth.sessionGrant = false; LocationAuth.set(value); render(); },
+        }, h("span", {}, title), h("span", { class: "spacer" }),
+          settings.locationPermission === value ? h("span", { class: "tint" }, icon("check")) : null))),
+        h("div", { class: "section-footer" }, "App explanation: “RoadFix uses your location to pin the issue you are reporting on the map.”")));
+    refreshIcons();
+  }
+  render();
+  log("loc", "openURL(UIApplication.openSettingsURLString) → Settings › RoadFix › Location");
+  $("screen").append(layer);
+}
+
+// RoadFix/Views/ContentView.swift (integrate-full-app version)
+function ContentView(vm) {
+  const reportService = new ReportService(); // @StateObject
+  currentReportService = reportService;
+  let selectedTab = "map";
+  let newReportSheet = null; // .sheet(isPresented: $showingNewReport)
+
+  const accountBtn = h("button", { class: "glass-btn icon", "aria-label": "Account" }, icon("circle-user-round"));
+  accountBtn.addEventListener("click", () => {
+    const u = vm.currentUser;
+    showMenu(accountBtn, [
+      ...(u ? [{ static: true, title: u.email }, { static: true, title: `Role: ${u.role}` }, "sep"] : []),
+      { title: "Sign Out", destructive: true, icon: "log-out", action: () => vm.signOut() },
+    ]);
+  });
+
+  const mapView = MapView(reportService, vm, {
+    trailingToolbar: accountBtn,
+    onNewReport: () => {
+      if (newReportSheet) return;
+      const view = NewReportView(reportService, () => newReportSheet && newReportSheet.dismiss());
+      newReportSheet = presentSheet(view.el, { onDismiss: () => { view.deinit(); newReportSheet = null; } });
+    },
+  });
+  const myReports = MyReportsView(reportService, vm);
+  const settingsView = SettingsView(vm);
+  let staff = null;
+
+  const panes = {
+    map: h("div", { class: "tab-content" }, mapView.el),
+    myReports: h("div", { class: "tab-content" }, myReports.el),
+    staff: h("div", { class: "tab-content" }),
+    settings: h("div", { class: "tab-content" }, settingsView.el),
+  };
+  const tabbar = h("div", { class: "tabbar" });
+  const el = h("div", { class: "tabview" }, ...Object.values(panes), tabbar);
+
+  function renderTabs() {
+    const isStaff = vm.currentUser && vm.currentUser.isStaff;
+    if (isStaff && !staff) { staff = StaffDashboardView(reportService); panes.staff.append(staff.el); }
+    if (!isStaff && selectedTab === "staff") selectedTab = "map";
+    const tabs = [
+      ["map", "Map", "map"],
+      ["myReports", "My Reports", "clipboard-list"],
+      ...(isStaff ? [["staff", "Staff", "list-checks"]] : []),
+      ["settings", "Settings", "settings"],
+    ];
+    tabbar.replaceChildren(...tabs.map(([key, title, ic]) =>
+      h("button", { class: "tab-btn" + (key === selectedTab ? " active" : ""), onclick: () => { selectedTab = key; renderTabs(); } }, icon(ic), title)));
+    for (const [key, pane] of Object.entries(panes)) pane.classList.toggle("active", key === selectedTab);
+    if (selectedTab === "map") mapView.invalidate();
+    refreshIcons();
+  }
+  renderTabs();
+  reportService.startListening(); // .onAppear
+
+  return {
+    el,
+    update() { renderTabs(); myReports.update(); settingsView.update(); },
+    mounted() { mapView.mount(); refreshIcons(); },
+    destroy() {
+      reportService.stopListening(); // .onDisappear
+      mapView.deinit(); myReports.deinit(); settingsView.deinit(); staff && staff.deinit();
+      for (const layer of $("screen").querySelectorAll(".ios-settings")) layer.remove();
+    },
+  };
+}
+
+function LoadingView() {
+  const page = Page();
+  page.body.append(h("div", { class: "progress" }, spinner(), h("div", { class: "body-text secondary" }, "Loading...")));
+  return { el: page.el, update() {} };
+}
+
+/* =====================================================================
+   RoadFixApp.swift + RootView.swift
+   ===================================================================== */
+const appEl = document.getElementById("app");
+let vm = null, branch = null, screen = null, currentReportService = null;
+
+function rootUpdate() {
+  const next = vm.isLoading ? "loading" : vm.currentUser ? "content" : "login";
+  if (next !== branch) {
+    // Switching branches in a SwiftUI Group destroys the old subtree, so its
+    // @State, @StateObject (ReportService) and any presented sheets are reset.
+    branch = next;
+    if (screen && screen.destroy) screen.destroy();
+    currentReportService = null;
+    for (const layer of $("screen").querySelectorAll(".menu-layer, .alert-layer")) layer.remove();
+    screen = next === "loading" ? LoadingView() : next === "content" ? ContentView(vm) : LoginView(vm);
+    appEl.replaceChildren(screen.el);
+    screen.mounted && screen.mounted();
+    refreshIcons();
+  }
+  screen.update();
+  refreshPanel();
+}
+
+function launchApp() {
+  if (vm) vm.deinit();
+  if (screen && screen.destroy) screen.destroy();
+  screen = null;
+  branch = null;
+  LocationAuth.sessionGrant = false;
+  log("vm", "── App launch: FirebaseApp.configure(), RootView appears ──");
+  vm = new AuthViewModel(rootUpdate);
+  rootUpdate();
+}
+
+/* =====================================================================
+   Dev panel
+   ===================================================================== */
+const short = (uid) => uid.slice(0, 6) + "…";
+const $ = (id) => document.getElementById(id);
+
+function renderLog() {
+  const ul = $("log");
+  if (!ul) return;
+  ul.replaceChildren(...logEntries.map((e) =>
+    h("li", {}, h("span", { class: "t" }, e.t), h("span", { class: (e.bad ? "bad " : "") + e.kind }, e.msg))));
+}
+
+function refreshPanel() {
+  const rows = Object.values(db.auth.users).map((u) => {
+    const profile = db.firestore.users && db.firestore.users[u.uid];
+    const role = profile ? profile.role : "no profile";
+    return h("tr", {},
+      h("td", {}, h("div", {}, u.email), h("div", { class: "mono hint" }, `pw: ${u.password} · ${short(u.uid)}`)),
+      h("td", { style: "text-align:center" }, h("span", { class: "tag " + (profile ? role : "none") }, role)),
+      h("td", { style: "text-align:right" }, h("button", { class: "pbtn", onclick: () => fillLogin(u.email, u.password) }, "Fill")));
+  });
+  $("accounts").replaceChildren(...(rows.length ? rows : [h("tr", {}, h("td", { class: "hint" }, "No accounts. Sign up in the app."))]));
+
+  const cur = db.auth.users[db.auth.currentUid];
+  $("session").innerHTML = "";
+  $("session").append(
+    h("span", { class: "hint" }, "Auth session: "),
+    cur ? h("strong", {}, cur.email) : h("span", {}, "signed out"),
+    h("span", { class: "hint" }, vm ? `  ·  RootView branch: ${branch || "…"}` : ""));
+
+  const codeDoc = db.firestore.config && db.firestore.config.staffInviteCode;
+  if (document.activeElement !== $("staffCode")) $("staffCode").value = codeDoc ? codeDoc.code : "";
+
+  $("fsDump").textContent = JSON.stringify(db.firestore, (k, v) => (typeof v === "string" && v.length > 80 ? v.slice(0, 40) + "…" : v), 2);
+
+  const emailOf = (uid) => (db.auth.users[uid] || {}).email || short(uid);
+  const reports = Object.entries(db.firestore.reports || {})
+    .map(([id, d]) => ReportService.report(id, d)).filter(Boolean).sort((a, b) => b.createdAt - a.createdAt);
+  $("reportsList").replaceChildren(...(reports.length
+    ? reports.map((r) => h("li", {}, h("strong", {}, ReportCategory[r.category].title), ` · ${ReportStatus[r.status]} · 👍 ${r.upvoteCount}${r.photoURL ? " · 📷" : ""}`,
+        h("div", { class: "hint" }, `${r.description} · by ${emailOf(r.reporterId)}`)))
+    : [h("li", { class: "hint" }, "No reports yet.")]));
+}
+
+function fillLogin(email, password) {
+  if (branch !== "login") { log("vm", "Fill: sign out first. The Log In screen isn't showing.", true); return; }
+  screen.fill(email, password);
+}
+
+function applyAppearance() {
+  $("screen").classList.toggle("dark", settings.dark);
+  screen && screen.appearanceChanged && screen.appearanceChanged();
+}
+
+function bindPanel() {
+  const bindToggle = (id, key, after) => {
+    $(id).checked = settings[key];
+    $(id).addEventListener("change", (e) => { settings[key] = e.target.checked; saveSettings(); log("vm", `⚙ ${key} = ${settings[key]}`); after && after(); });
+  };
+  bindToggle("optOffline", "offline", () => { $("wifiIcon").style.opacity = settings.offline ? .25 : 1; });
+  bindToggle("optFailWrites", "failWrites");
+  bindToggle("optJitter", "jitter");
+  bindToggle("optDark", "dark", applyAppearance);
+  bindToggle("optOldBuild", "oldBuild");
+  $("wifiIcon").style.opacity = settings.offline ? .25 : 1;
+
+  const lat = $("optLatency");
+  lat.value = settings.latency;
+  $("latencyVal").textContent = `${settings.latency} ms`;
+  lat.addEventListener("input", () => { settings.latency = Number(lat.value); $("latencyVal").textContent = `${settings.latency} ms`; saveSettings(); });
+
+  $("locPerm").value = settings.locationPermission;
+  $("locPerm").addEventListener("change", (e) => { LocationAuth.sessionGrant = false; LocationAuth.set(e.target.value); });
+  $("locPreset").value = settings.locationPreset;
+  $("locPreset").addEventListener("change", (e) => { settings.locationPreset = e.target.value; saveSettings(); log("loc", `⚙ simulated location = ${e.target.value}`); });
+
+  $("staffCode").addEventListener("change", (e) => {
+    const v = e.target.value;
+    db.firestore.config = db.firestore.config || {};
+    if (v === "") delete db.firestore.config.staffInviteCode;
+    else db.firestore.config.staffInviteCode = { code: v };
+    saveDB(); refreshPanel();
+    log("fs", v === "" ? "⚙ config/staffInviteCode deleted (console)" : `⚙ config/staffInviteCode.code = "${v}" (console)`);
+  });
+
+  $("relaunch").addEventListener("click", launchApp);
+  $("dropProfile").addEventListener("click", () => {
+    const uid = db.auth.currentUid;
+    if (!uid) { log("fs", "No signed-in user", true); return; }
+    delete db.firestore.users[uid];
+    saveDB(); refreshPanel();
+    log("fs", `⚙ users/${short(uid)} deleted (console). Relaunch to see the effect.`);
+  });
+  $("reset").addEventListener("click", () => {
+    db = seedDB(); saveDB();
+    log("vm", "⚙ Data reset to seed accounts");
+    launchApp();
+  });
+  $("clearLog").addEventListener("click", () => { logEntries.length = 0; renderLog(); });
+}
+
+/* ---------- device scaling + clock ---------- */
+function fitDevice() {
+  const wrap = $("deviceWrap");
+  const avail = window.innerHeight - 60;
+  const scale = Math.min(1, avail / 876, (window.innerWidth - 32) / 417);
+  wrap.style.zoom = scale;
+}
+function tick() {
+  const d = new Date();
+  $("clock").textContent = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+window.addEventListener("resize", fitDevice);
+fitDevice();
+tick(); setInterval(tick, 10000);
+applyAppearance();
+bindPanel();
+launchApp();
+</script>
+</body>
+</html>

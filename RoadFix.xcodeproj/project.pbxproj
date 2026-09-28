@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		491F21F1306207DA00FA4CC8 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 491F21F0306207DA00FA4CC8 /* FirebaseAuth */; };
+		491F21F3306207DA00FA4CC8 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 491F21F2306207DA00FA4CC8 /* FirebaseFirestore */; };
+		491F21F5306207DA00FA4CC8 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 491F21F4306207DA00FA4CC8 /* FirebaseStorage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		491F21C63061FD4500FA4CC8 /* RoadFix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RoadFix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				491F21F1306207DA00FA4CC8 /* FirebaseAuth in Frameworks */,
+				491F21F3306207DA00FA4CC8 /* FirebaseFirestore in Frameworks */,
+				491F21F5306207DA00FA4CC8 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +74,9 @@
 			);
 			name = RoadFix;
 			packageProductDependencies = (
+				491F21F0306207DA00FA4CC8 /* FirebaseAuth */,
+				491F21F2306207DA00FA4CC8 /* FirebaseFirestore */,
+				491F21F4306207DA00FA4CC8 /* FirebaseStorage */,
 			);
 			productName = RoadFix;
 			productReference = 491F21C63061FD4500FA4CC8 /* RoadFix.app */;
@@ -82,6 +94,7 @@
 				TargetAttributes = {
 					491F21C53061FD4500FA4CC8 = {
 						CreatedOnToolsVersion = 26.3;
+						LastSwiftMigration = 2630;
 					};
 				};
 			};
@@ -94,6 +107,9 @@
 			);
 			mainGroup = 491F21BD3061FD4500FA4CC8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				491F21EF306207DA00FA4CC8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 491F21C73061FD4500FA4CC8 /* Products */;
 			projectDirPath = "";
@@ -249,10 +265,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoadFix uses your location to pin the issue you are reporting on the map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -269,6 +287,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "RoadFix/Models/RoadFix-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -280,10 +300,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoadFix uses your location to pin the issue you are reporting on the map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -300,6 +322,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "RoadFix/Models/RoadFix-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -328,6 +351,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		491F21EF306207DA00FA4CC8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.19.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		491F21F0306207DA00FA4CC8 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 491F21EF306207DA00FA4CC8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		491F21F2306207DA00FA4CC8 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 491F21EF306207DA00FA4CC8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		491F21F4306207DA00FA4CC8 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 491F21EF306207DA00FA4CC8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 491F21BE3061FD4500FA4CC8 /* Project object */;
 }

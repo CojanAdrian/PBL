@@ -13,7 +13,13 @@ final class AuthViewModel: ObservableObject {
     @Published var currentUser: AppUser?
     @Published var isLoading: Bool = true
     @Published var errorMessage: String?
+    // True while a sign-in or sign-up request is running, so the button can
+    // show a spinner and can't be tapped twice.
+    @Published var isSubmitting: Bool = false
 
+    // During sign-up the auth listener fires before the profile doc exists;
+    // keep isSubmitting on until createUserProfile finishes.
+    private var isCreatingAccount = false
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private let db = Firestore.firestore()
 
@@ -51,31 +57,39 @@ final class AuthViewModel: ObservableObject {
                   let role = data["role"] as? String else {
                 self.errorMessage = "Could not load your account profile."
                 self.currentUser = nil
+                if !self.isCreatingAccount { self.isSubmitting = false }
                 return
             }
             self.currentUser = AppUser(id: uid, email: email, role: role)
+            self.isSubmitting = false
         }
     }
 
     func signIn(email: String, password: String) {
         errorMessage = nil
+        isSubmitting = true
         Auth.auth().signIn(withEmail: email, password: password) { [weak self] _, error in
             if let error {
                 self?.errorMessage = self?.mapAuthError(error)
+                self?.isSubmitting = false
             }
         }
     }
 
     func signUp(email: String, password: String, staffCode: String?) {
         errorMessage = nil
+        isSubmitting = true
+        isCreatingAccount = true
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             guard let self else { return }
             if let error {
                 self.errorMessage = self.mapAuthError(error)
+                self.finishSubmitting()
                 return
             }
             guard let firebaseUser = result?.user else {
                 self.errorMessage = "Something went wrong, try again."
+                self.finishSubmitting()
                 return
             }
             self.resolveRole(staffCode: staffCode) { role in
@@ -109,11 +123,18 @@ final class AuthViewModel: ObservableObject {
                 self.errorMessage = "Could not finish creating your account. Try again."
                 createdUser.delete(completion: nil)
                 try? Auth.auth().signOut()
+                self.finishSubmitting()
                 return
             }
             self.currentUser = AppUser(id: uid, email: email, role: role)
             self.errorMessage = nil
+            self.finishSubmitting()
         }
+    }
+
+    private func finishSubmitting() {
+        isSubmitting = false
+        isCreatingAccount = false
     }
 
     func signOut() {
@@ -121,6 +142,7 @@ final class AuthViewModel: ObservableObject {
             try Auth.auth().signOut()
             currentUser = nil
             errorMessage = nil
+            finishSubmitting()
         } catch {
             errorMessage = "Could not sign out. Try again."
         }

@@ -1,0 +1,8 @@
+{
+  "name": "roadfix-web-sim",
+  "private": true,
+  "description": "Browser simulation of the RoadFix SwiftUI app with a mocked Firebase backend",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
