@@ -6,7 +6,7 @@
 import Foundation
 
 struct AppUser: Identifiable, Equatable {
-    let id: String        // Firebase Auth uid
+    let id: String        // User ID from the API
     let email: String
     let role: String      // "citizen" or "staff"
 

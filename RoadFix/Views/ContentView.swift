@@ -36,8 +36,7 @@ struct ContentView: View {
             }
 
             // Only staff accounts get the dashboard. The role comes from the
-            // user's Firestore profile, and firestore.rules enforces the same
-            // check server-side for status changes.
+            // API, and the server enforces the same check for status changes.
             if authViewModel.currentUser?.isStaff == true {
                 NavigationStack {
                     StaffDashboardView(reportService: reportService)

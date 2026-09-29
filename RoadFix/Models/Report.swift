@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 
-// Raw values are the strings stored in Firestore; `title` is what the UI shows.
+// Raw values are the strings the API sends and stores; `title` is what the UI shows.
 enum ReportCategory: String, CaseIterable, Identifiable, Hashable {
     case pothole
     case streetlight
@@ -32,7 +32,7 @@ enum ReportCategory: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-// Raw values must match firestore.rules (a new report's status is "reported").
+// Raw values must match the API (server/src/app.js); a new report starts as "reported".
 enum ReportStatus: String, CaseIterable, Hashable {
     case reported
     case inProgress
@@ -47,8 +47,8 @@ enum ReportStatus: String, CaseIterable, Hashable {
     }
 }
 
-struct Report: Identifiable, Equatable {
-    let id: String            // Firestore document ID
+struct Report: Identifiable, Equatable, Decodable {
+    let id: String            // Report ID from the API
     var category: ReportCategory
     var description: String
     var photoURL: String?
