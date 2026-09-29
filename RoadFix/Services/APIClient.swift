@@ -11,7 +11,7 @@ import Security
 enum APIConfig {
     // Set this to your Railway API service's public domain (Settings ->
     // Networking -> Generate Domain). HTTPS only; iOS blocks plain http.
-    static let baseURL = URL(string: "https://YOUR-API-SERVICE.up.railway.app")!
+    static let baseURL = URL(string: "https://api-production-45e31.up.railway.app")!
 }
 
 struct APIError: LocalizedError {
