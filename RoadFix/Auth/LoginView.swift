@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var showSignUp = false
+    @FocusState private var focus: AuthFocus?
 
     private var canSubmit: Bool {
         !email.isEmpty && !password.isEmpty
@@ -17,40 +18,70 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("RoadFix")
-                    .font(.largeTitle.bold())
+            AuthScreen {
+                Spacer(minLength: 0)
 
-                TextField("Email", text: $email)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .textFieldStyle(.roundedBorder)
+                AuthHeader(title: "RoadFix", subtitle: "Report road issues in your city.")
 
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.roundedBorder)
+                AuthCard {
+                    AuthField(
+                        systemImage: "envelope",
+                        placeholder: "Email",
+                        text: $email,
+                        contentType: .username,
+                        keyboard: .emailAddress,
+                        focus: $focus,
+                        field: .email
+                    )
+                    .submitLabel(.next)
+                    .onSubmit { focus = .password }
 
-                if let errorMessage = authViewModel.errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
+                    AuthCardDivider()
+
+                    AuthField(
+                        systemImage: "lock",
+                        placeholder: "Password",
+                        text: $password,
+                        isSecure: true,
+                        contentType: .password,
+                        focus: $focus,
+                        field: .password
+                    )
+                    .submitLabel(.go)
+                    .onSubmit(submit)
                 }
 
-                Button("Log In") {
-                    authViewModel.signIn(email: email, password: password)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canSubmit)
+                AuthErrorText(message: authViewModel.errorMessage)
 
-                Button("Don't have an account? Sign Up") {
-                    showSignUp = true
+                AuthPrimaryButton(
+                    title: "Log In",
+                    isLoading: authViewModel.isSubmitting,
+                    isEnabled: canSubmit,
+                    action: submit
+                )
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 4) {
+                    Text("New to RoadFix?")
+                        .foregroundStyle(.secondary)
+                    Button("Create Account") {
+                        showSignUp = true
+                    }
+                    .fontWeight(.semibold)
                 }
                 .font(.footnote)
             }
-            .padding()
             .navigationDestination(isPresented: $showSignUp) {
                 SignUpView()
             }
         }
+    }
+
+    private func submit() {
+        guard canSubmit, !authViewModel.isSubmitting else { return }
+        focus = nil
+        authViewModel.signIn(email: email, password: password)
     }
 }
 

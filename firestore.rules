@@ -27,30 +27,42 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Baseline for the reports collection teammates' ReportService.swift
-    // will write to. Assumes `status` and `reporterId` fields per the team's
-    // status email, and that a new report's status literal is "reported";
-    // revisit field/value names once Report.swift actually lands.
+    // Written by ReportService.swift. Field names and the status values
+    // ("reported", "inProgress", "resolved") match Report.swift.
     match /reports/{reportId} {
       allow read: if isSignedIn();
 
-      // A citizen may only create a report as themselves, and only with the
-      // initial status — they cannot set an arbitrary status (e.g.
-      // "resolved") at creation time. Without this, the create path defeats
-      // the whole point of the update rule below.
+      // The only change a non-owner may make: adding or removing their own
+      // uid in upvoterIds, so each user can upvote a report at most once.
+      function isOwnUpvoteChange() {
+        let before = resource.data.get('upvoterIds', []).toSet();
+        let after = request.resource.data.get('upvoterIds', []).toSet();
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvoterIds'])
+            && after.difference(before).union(before.difference(after)).hasOnly([request.auth.uid]);
+      }
+
+      // A citizen may only create a report as themselves, only with the
+      // initial status and no upvotes — they cannot set an arbitrary status
+      // (e.g. "resolved") or fake upvotes at creation time. Without this, the
+      // create path defeats the whole point of the update rule below.
       allow create: if isSignedIn()
                     && request.resource.data.reporterId == request.auth.uid
-                    && request.resource.data.status == "reported";
+                    && request.resource.data.status == "reported"
+                    && request.resource.data.upvoterIds == [];
 
-      // Staff can change anything, including status. A non-staff user may
-      // only update their own report, and only fields other than status.
+      // Staff can change anything, including status. The reporter may edit
+      // their own report, but not its status, owner or upvotes. Anyone
+      // signed in may toggle their own upvote.
       allow update: if isSignedIn() &&
                      (
                        userRole() == "staff" ||
                        (
                          resource.data.reporterId == request.auth.uid &&
-                         request.resource.data.status == resource.data.status
-                       )
+                         request.resource.data.status == resource.data.status &&
+                         request.resource.data.reporterId == resource.data.reporterId &&
+                         request.resource.data.get('upvoterIds', []) == resource.data.get('upvoterIds', [])
+                       ) ||
+                       isOwnUpvoteChange()
                      );
 
       allow delete: if false;
