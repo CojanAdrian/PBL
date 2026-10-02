@@ -571,3 +571,49 @@
     padding: 18px 16px;
   }
 }
+
+/* ---------- Email status ---------- */
+.mail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 18px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.mail p {
+  margin-top: 4px;
+  font-size: 0.92rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.mail code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  font-size: 0.85em;
+}
+.mail--on {
+  border-color: rgba(127, 212, 154, 0.35);
+}
+.mail--on strong {
+  color: var(--ok);
+}
+.mail--off,
+.mail--bad {
+  border-color: rgba(255, 122, 107, 0.5);
+  background: rgba(255, 122, 107, 0.07);
+}
+.mail--off strong,
+.mail--bad strong {
+  color: var(--danger);
+}
+.mail__err {
+  display: block;
+  margin-top: 4px;
+  color: #ffd2cb;
+}

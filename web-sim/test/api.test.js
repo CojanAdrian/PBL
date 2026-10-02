@@ -262,6 +262,47 @@ test("using the admin page never locks you out, only wrong keys do", async () =>
   assert.equal((await fetch(`${base}/api/admin/preorders`, { headers: { "x-admin-key": "nope" } })).status, 429);
 });
 
+test("the test-email button reports success, and the exact error when the provider refuses", async () => {
+  const mk = async (mailer) => {
+    const db = newDb();
+    db.public.none(fs.readFileSync(path.join(__dirname, "..", "src", "schema.sql"), "utf8"));
+    const { Pool } = db.adapters.createPg();
+    const app = createApp({ pool: new Pool(), config, adminKey: "k", mailer, emailTo: mailer ? "kenny@igtfreight.com" : undefined });
+    const srv = await new Promise((resolve) => { const x = app.listen(0, "127.0.0.1", () => resolve(x)); });
+    return { srv, url: `http://127.0.0.1:${srv.address().port}` };
+  };
+  const hit = (url, path_, method = "POST") => fetch(url + path_, { method, headers: { "x-admin-key": "k", "Content-Type": "application/json" }, body: method === "POST" ? "{}" : undefined });
+
+  const sentMail = [];
+  let ok = await mk({ provider: "brevo", send: async (m) => sentMail.push(m) });
+  try {
+    assert.equal((await fetch(ok.url + "/api/admin/email-test", { method: "POST" })).status, 401);
+    const res = await hit(ok.url, "/api/admin/email-test");
+    assert.equal(res.status, 200);
+    assert.equal(sentMail[0].to, "kenny@igtfreight.com");
+    const list = await (await hit(ok.url, "/api/admin/preorders", "GET")).json();
+    assert.deepEqual({ enabled: list.email.enabled, provider: list.email.provider, to: list.email.to, lastError: list.email.lastError }, { enabled: true, provider: "brevo", to: "kenny@igtfreight.com", lastError: null });
+  } finally { ok.srv.close(); }
+
+  const bad = await mk({ provider: "resend", send: async () => { throw new Error("Resend responded 403 domain not verified"); } });
+  try {
+    const res = await hit(bad.url, "/api/admin/email-test");
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).error, /403 domain not verified/);
+    const list = await (await hit(bad.url, "/api/admin/preorders", "GET")).json();
+    assert.match(list.email.lastError, /domain not verified/);
+  } finally { bad.srv.close(); }
+
+  const off = await mk(null);
+  try {
+    const res = await hit(off.url, "/api/admin/email-test");
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /Email is OFF/);
+    const list = await (await hit(off.url, "/api/admin/preorders", "GET")).json();
+    assert.equal(list.email.enabled, false);
+  } finally { off.srv.close(); }
+});
+
 test("without a database preorders say so instead of pretending", async () => {
   const app = createApp({ pool: null, config, adminKey: "" });
   const s = await new Promise((resolve) => {

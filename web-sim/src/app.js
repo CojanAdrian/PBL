@@ -109,10 +109,31 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
     }
   });
 
+  // What the admin page shows about email: is it on, and did the last one work?
+  const emailState = { lastError: null, lastOkAt: null };
+  const emailInfo = () => ({
+    enabled: Boolean(mailer && emailTo),
+    provider: mailer ? mailer.provider : null,
+    to: emailTo || null,
+    lastError: emailState.lastError,
+    lastOkAt: emailState.lastOkAt,
+  });
+
+  async function sendMail(message) {
+    if (!mailer || !emailTo) throw new Error("Email is not set up on the server.");
+    try {
+      await mailer.send({ to: emailTo, ...message });
+      emailState.lastError = null;
+      emailState.lastOkAt = new Date().toISOString();
+    } catch (err) {
+      emailState.lastError = err.message;
+      throw err;
+    }
+  }
+
   async function notifyEmail(code, order, adminUrl) {
     if (!mailer || !emailTo) return;
-    const message = buildOrderEmail({ code, order, config, adminUrl });
-    await mailer.send({ to: emailTo, ...message });
+    await sendMail(buildOrderEmail({ code, order, config, adminUrl }));
   }
 
   async function notifyTelegram(code, order) {
@@ -174,9 +195,27 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
         flavours: config.flavours.map(({ id, name }) => ({ id, name })),
         sizes: config.sizes,
         currency: config.currency,
+        email: emailInfo(),
       });
     } catch (err) {
       next(err);
+    }
+  });
+
+  // "Send test email" button: tells you straight away whether email works, and if not, why.
+  app.post("/api/admin/email-test", requireAdmin, async (_req, res) => {
+    if (!mailer || !emailTo) {
+      return res.status(400).json({ error: "Email is OFF. Set BREVO_API_KEY (or RESEND_API_KEY) and EMAIL_FROM on the server." });
+    }
+    try {
+      await sendMail({
+        subject: "Test email from Big Ed's Jerky",
+        text: "If you can read this, preorder emails are working. New preorders will arrive in this inbox.",
+        html: "<p style=\"font-family:Arial,sans-serif;font-size:16px\">If you can read this, <strong>preorder emails are working</strong>. New preorders will arrive in this inbox.</p>",
+      });
+      res.json({ ok: true, to: emailTo });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
     }
   });
 

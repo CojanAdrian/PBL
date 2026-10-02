@@ -19,6 +19,7 @@ let currency = "MDL";
 let tab = "orders";
 let filter = "new";
 let range = "all";
+let email = { enabled: false };
 
 const money = (n) => Number(n).toLocaleString("en-US");
 const weight = (g) => (g >= 1000 ? `${+(g / 1000).toFixed(2)} kg` : `${g} g`);
@@ -37,6 +38,7 @@ async function load() {
   names = new Map(data.flavours.map((f) => [f.id, f.name]));
   sizes = data.sizes || sizes;
   currency = data.currency || currency;
+  email = data.email || email;
   $("#login").hidden = true;
   $("#app").hidden = false;
   $("#lock").hidden = false;
@@ -61,7 +63,22 @@ function chips(el, items, current, attr) {
   el.innerHTML = items.map(([v, label, n]) => `<button class="chip" type="button" data-${attr}="${v}" aria-pressed="${current === v}">${esc(label)}${n === undefined ? "" : `<small>${n}</small>`}</button>`).join("");
 }
 
+function renderMail() {
+  const el = $("#mail");
+  if (!email.enabled) {
+    el.className = "mail mail--off";
+    el.innerHTML = `<div><strong>Email notifications are off.</strong><p>Preorders are saved, but nobody is emailed. Set <code>BREVO_API_KEY</code> (or <code>RESEND_API_KEY</code>) and <code>EMAIL_FROM</code> on Railway to switch them on.</p></div>`;
+    return;
+  }
+  const failed = Boolean(email.lastError);
+  el.className = `mail ${failed ? "mail--bad" : "mail--on"}`;
+  el.innerHTML = `<div><strong>${failed ? "The last email did not send" : "Email notifications are on"}</strong>
+      <p>New preorders are emailed to <b>${esc(email.to)}</b> through ${esc(email.provider)}.${failed ? ` <span class="mail__err">${esc(email.lastError)}</span>` : ""}</p></div>
+    <button class="btn btn--ghost btn--sm" type="button" id="mail-test"><span>Send test email</span></button>`;
+}
+
 function renderOrders() {
+  renderMail();
   const counts = Object.fromEntries(STATUSES.map((s) => [s, orders.filter((o) => o.status === s).length]));
   chips($("#filters"), [["all", "All", orders.length], ...STATUSES.map((s) => [s, LABEL[s], counts[s]])], filter, "f");
 
@@ -345,6 +362,21 @@ $(".tabs").addEventListener("keydown", (e) => {
   tab = tab === "orders" ? "stats" : "orders";
   render();
   $(`#tab-${tab}`).focus();
+});
+$("#mail").addEventListener("click", async (e) => {
+  const btn = e.target.closest("#mail-test");
+  if (!btn) return;
+  btn.disabled = true;
+  btn.querySelector("span").textContent = "Sending…";
+  try {
+    const r = await api("/api/admin/email-test", { method: "POST", body: "{}" });
+    toast(`Test email sent to ${r.to}. Check the inbox, and the spam folder too.`);
+    email = { ...email, lastError: null };
+  } catch (err) {
+    email = { ...email, lastError: err.message };
+    toast("The test email failed. The reason is shown on the page.");
+  }
+  renderMail();
 });
 $("#refresh").addEventListener("click", () => load().then(() => toast("Updated.")).catch(() => toast("Couldn't refresh.")));
 $("#lock").addEventListener("click", () => {

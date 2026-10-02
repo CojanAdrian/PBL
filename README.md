@@ -72,7 +72,9 @@ Railway blocks normal email (SMTP) on its cheaper plans, so the server uses an e
 2. Create an API key.
 3. In Railway set `RESEND_API_KEY` and `EMAIL_FROM` (an address on your verified domain).
 
-If the email fails, the preorder is still saved and the problem is written to the Railway logs.
+**Check that it works:** open `/admin`. At the top of the Orders tab a box says whether email is on or off. Press **Send test email**: it sends a message to `ORDER_EMAIL_TO` right away and shows the exact reason if the email service refuses it (wrong key, sender not verified, and so on).
+
+If an email fails, the preorder is still saved, the problem is shown in that box, and it is written to the Railway logs.
 
 ## Ed's preorder list
 
