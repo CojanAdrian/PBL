@@ -4,8 +4,13 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Price of ONE pack. Preset sizes use the table in config.json; any other
+// (custom) size uses base + perGram x grams.
 function lineTotal(grams, config) {
-  return Math.round((grams * config.pricePer100g) / 100);
+  const fixed = config.prices?.[String(grams)];
+  if (Number.isFinite(fixed)) return fixed;
+  const { base = 0, perGram = 0 } = config.customPrice || {};
+  return Math.round(base + perGram * grams);
 }
 
 function isAllowedGrams(grams, config) {
@@ -55,11 +60,13 @@ function validateOrder(body, config, now = new Date()) {
   const name = cleanText(input.name, 80);
   if (name.length < 2) errors.name = "Please tell us your name.";
 
+  // Phone and email are both optional, but Ed needs at least one way to reach you.
   const phone = String(input.phone ?? "").replace(/[\s().-]/g, "");
-  if (!/^\+?\d{7,15}$/.test(phone)) errors.phone = "Enter a phone number Ed can reach you on.";
+  if (phone && !/^\+?\d{7,15}$/.test(phone)) errors.phone = "That phone number doesn't look right.";
 
   const email = cleanText(input.email, 254).toLowerCase();
   if (email && !EMAIL_RE.test(email)) errors.email = "That email doesn't look right.";
+  if (!phone && !email) errors.phone = "Add a phone number or an email so Ed can confirm your order.";
 
   const delivery = input.delivery === "delivery" ? "delivery" : input.delivery === "pickup" ? "pickup" : null;
   if (!delivery) errors.delivery = "Choose pickup or delivery.";

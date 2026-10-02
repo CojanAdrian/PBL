@@ -22,7 +22,13 @@ const ICON = {
 export function initBuilder(cfg, mount) {
   const byId = new Map(cfg.flavours.map((f) => [f.id, f]));
   const cur = cfg.currency;
-  const price = (grams) => Math.round((grams * cfg.pricePer100g) / 100);
+  // Price of one pack: the preset table first, then base + per gram for custom sizes.
+  const price = (grams) => {
+    const fixed = cfg.prices && cfg.prices[String(grams)];
+    if (Number.isFinite(fixed)) return fixed;
+    const { base = 0, perGram = 0 } = cfg.customPrice || {};
+    return Math.round(base + perGram * grams);
+  };
   const clampQty = (n) => Math.max(1, Math.min(cfg.limits.maxPacksPerLine, n));
   const { min: CMIN, max: CMAX, step: CSTEP } = cfg.custom;
   const num = (n) => Number(n).toLocaleString("en-US");
@@ -104,6 +110,11 @@ export function initBuilder(cfg, mount) {
       <div class="panel__head">
         <h3 class="panel__title" id="p1-title" tabindex="-1">Fill your box</h3>
         <p class="panel__sub">Start with a quick pick, or add flavours one by one. Every pack size and amount is up to you.</p>
+        <ol class="howto" aria-label="How it works">
+          <li><b>1</b><span>Tap <strong>Add</strong> on a flavour</span></li>
+          <li><b>2</b><span>Pick a size and how many</span></li>
+          <li><b>3</b><span>Press <strong>Continue</strong></span></li>
+        </ol>
       </div>
       <p class="lbl">Quick starts</p>
       <div class="presets">
@@ -129,9 +140,9 @@ export function initBuilder(cfg, mount) {
             <p class="err" id="e-name" role="alert"></p>
           </div>
           <div class="field">
-            <label class="lbl" for="f-phone">Phone <span class="req" aria-hidden="true">*</span></label>
-            <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+373 …" maxlength="30" required aria-describedby="h-phone e-phone">
-            <p class="hint" id="h-phone">Ed confirms your order by phone or message.</p>
+            <label class="lbl" for="f-phone">Phone (optional)</label>
+            <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+373 …" maxlength="30" aria-describedby="h-phone e-phone">
+            <p class="hint" id="h-phone">Add a phone number, an email, or both, so Ed can confirm your order.</p>
             <p class="err" id="e-phone" role="alert"></p>
           </div>
         </div>
@@ -197,6 +208,7 @@ export function initBuilder(cfg, mount) {
         <span class="badge is-empty" data-badge>0 packs</span>
       </div>
       <div class="tray is-empty" data-tray>
+        <div class="tray__stack" data-stack></div>
         <p class="tray__empty">Your box is empty.<br>Pick a flavour or try a quick start.</p>
       </div>
       <div class="totals">
@@ -276,6 +288,7 @@ export function initBuilder(cfg, mount) {
     review: $("[data-review]", mount),
     done: $("[data-done]", mount),
     tray: $("[data-tray]", mount),
+    stack: $("[data-stack]", mount),
     badge: $("[data-badge]", mount),
     weight: $("[data-weight]", mount),
     total: $("[data-total]", mount),
@@ -351,6 +364,8 @@ export function initBuilder(cfg, mount) {
   // ---------- Rendering: box card ----------
   const trayMap = new Map();
   let moreEl = null;
+  // Pouches grow with the pack size, so you can see a 50 g from a 150 g.
+  const trayScale = (grams) => Math.max(0.8, Math.min(1.6, 0.75 + (grams / 150) * 0.45)).toFixed(3);
   function renderTray() {
     const want = [];
     for (const l of state.lines) for (let i = 0; i < l.qty; i++) want.push({ key: `${l.flavour}-${i}`, flavour: byId.get(l.flavour), grams: l.grams });
@@ -362,24 +377,36 @@ export function initBuilder(cfg, mount) {
       node.classList.add("is-leaving");
       setTimeout(() => node.remove(), 320);
     }
+    // The more packs, the more they overlap and the smaller they get, so the box always fits.
+    const n = shown.length;
+    el.stack.style.setProperty("--ovn", n <= 5 ? 0.26 : n <= 9 ? 0.4 : n <= 14 ? 0.5 : 0.58);
+    el.stack.style.setProperty("--kn", n <= 6 ? 1 : n <= 12 ? 0.86 : 0.72);
+
+    let prev = null;
     shown.forEach((w, i) => {
       let node = trayMap.get(w.key);
-      const scale = Math.min(1.5, 0.7 + (w.grams / 150) * 0.35).toFixed(3);
       if (!node) {
         node = document.createElement("div");
         node.className = "tp";
-        node.innerHTML = pouchSVG(w.flavour, { mini: true });
+        node.innerHTML = pouchSVG(w.flavour, { grams: w.grams });
         node.dataset.g = String(w.grams);
+        // Once it has dropped in, stop the animation so re-ordering never replays it.
+        node.addEventListener("animationend", () => node.classList.add("is-settled"), { once: true });
+        if (reduce) node.classList.add("is-settled");
         trayMap.set(w.key, node);
-        el.tray.appendChild(node);
-        if (reduce) node.style.animation = "none";
-      }
-      if (node.dataset.g !== String(w.grams)) {
+      } else if (node.dataset.g !== String(w.grams)) {
         node.dataset.g = String(w.grams);
-        node.querySelector("svg").outerHTML = pouchSVG(w.flavour, { mini: true });
+        node.innerHTML = pouchSVG(w.flavour, { grams: w.grams });
       }
-      node.style.setProperty("--s", scale);
-      node.style.order = String(i);
+      node.dataset.label = `${w.flavour.name} · ${w.grams} g`;
+      node.style.setProperty("--s", trayScale(w.grams));
+      node.style.setProperty("--rot", `${(((i * 37) % 7) - 3) * 1.4}deg`);
+      node.style.setProperty("--z", String(i + 1));
+      node.style.setProperty("--glow", w.flavour.accent);
+      // Keep the DOM in the same order as the pouches are shown (the hover effect depends on it).
+      const ref = prev ? prev.nextSibling : el.stack.firstChild;
+      if (node.parentNode !== el.stack || ref !== node) el.stack.insertBefore(node, ref);
+      prev = node;
     });
     const extra = want.length - shown.length;
     if (extra > 0) {
@@ -589,7 +616,7 @@ export function initBuilder(cfg, mount) {
 
   const checks = {
     name: (v) => (v.trim().length < 2 ? "Please tell us your name." : ""),
-    phone: (v) => (/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "" : "Enter a phone number Ed can reach you on."),
+    phone: (v) => (v.trim() && !/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "That phone number doesn't look right." : ""),
     email: (v) => (v.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? "That email doesn't look right." : ""),
     address: (v) => (state.d.delivery === "delivery" && v.trim().length < 5 ? "Add your address or area for delivery." : ""),
     date: (v) => (v && v < todayStr ? "Pick a date from today onwards." : ""),
@@ -633,12 +660,17 @@ export function initBuilder(cfg, mount) {
     state.d[name] = e.target.value;
     if (name === "note") $("[data-note-count]", mount).textContent = String(e.target.value.length);
     if (e.target.getAttribute("aria-invalid") === "true") validateField(name);
+    // Typing an email (or phone) clears the "add a way to reach you" message.
+    if ((name === "email" || name === "phone") && (state.d.phone.trim() || state.d.email.trim()) && $("#e-phone", mount).textContent.startsWith("Add a phone")) {
+      showError("phone", "");
+      showError("email", checks.email(state.d.email));
+    }
     save();
   });
   el.form.addEventListener("focusout", (e) => {
     const name = e.target.name;
     if (checks[name] && state.d[name] !== undefined && e.target.value !== "") validateField(name);
-    else if (name === "name" || name === "phone") validateField(name);
+    else if (name === "name") validateField(name);
   });
   $("[data-delivery]", mount).addEventListener("click", (e) => {
     const b = e.target.closest("[role=radio]");
@@ -653,6 +685,11 @@ export function initBuilder(cfg, mount) {
     let firstBad = null;
     for (const name of Object.keys(checks)) {
       if (validateField(name) && !firstBad) firstBad = field(name);
+    }
+    // Phone and email are both optional, but Ed needs at least one of them.
+    if (!state.d.phone.trim() && !state.d.email.trim()) {
+      showError("phone", "Add a phone number or an email so Ed can confirm your order.");
+      if (!firstBad) firstBad = field("phone");
     }
     if (firstBad) {
       firstBad.focus();
@@ -683,7 +720,7 @@ export function initBuilder(cfg, mount) {
       <div class="review__head"><h4>Your details</h4><button class="link-btn" type="button" data-edit="2">Edit</button></div>
       <dl class="kv">
         <div><dt>Name</dt><dd>${esc(d.name)}</dd></div>
-        <div><dt>Phone</dt><dd>${esc(d.phone)}</dd></div>
+        ${d.phone ? `<div><dt>Phone</dt><dd>${esc(d.phone)}</dd></div>` : ""}
         ${d.email ? `<div><dt>Email</dt><dd>${esc(d.email)}</dd></div>` : ""}
         <div><dt>${d.delivery === "delivery" ? "Delivery to" : "Pickup"}</dt><dd>${d.delivery === "delivery" ? esc(d.address) : "Collect from Ed"}</dd></div>
         ${d.date ? `<div><dt>Preferred date</dt><dd>${esc(d.date)}</dd></div>` : ""}
@@ -768,6 +805,7 @@ export function initBuilder(cfg, mount) {
       code: data.code,
       name: state.d.name.trim(),
       phone: state.d.phone,
+      email: state.d.email,
       delivery: state.d.delivery,
       lines: state.lines.map((l) => ({ ...l })),
       totals: t,
@@ -803,7 +841,7 @@ export function initBuilder(cfg, mount) {
       <div class="rlist done__summary">${rows}<div class="rtotal"><span>${s.totals.packs} ${s.totals.packs === 1 ? "pack" : "packs"} · ${esc(fmtGrams(s.totals.grams))}</span><output>${num(s.totals.cost)} ${esc(cur)}</output></div></div>
       <ol class="done__next">
         <li><b>1</b><span>Ed gets your preorder right away.</span></li>
-        <li><b>2</b><span>He contacts you on <strong>${esc(s.phone)}</strong> to confirm the details.</span></li>
+        <li><b>2</b><span>He gets in touch on <strong>${esc(s.phone || s.email)}</strong> to confirm the details.</span></li>
         <li><b>3</b><span>${s.delivery === "delivery" ? "Your jerky is delivered" : "You collect your jerky"}, and you pay then.</span></li>
       </ol>
       <div class="done__actions">

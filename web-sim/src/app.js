@@ -5,22 +5,25 @@ const path = require("path");
 const express = require("express");
 const compression = require("compression");
 const { validateOrder, makeCode, describeOrder } = require("./orders");
+const { buildOrderEmail } = require("./email");
 
 const STATUSES = ["new", "confirmed", "fulfilled", "cancelled"];
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
-// Tiny in-memory rate limiter: `max` hits per `windowMs` for each key.
+// Tiny in-memory rate limiter. `allowed` only looks; `hit` records one event.
+// Callers decide what counts, so ordinary use is never penalised.
 function createLimiter(max, windowMs) {
   const hits = new Map();
-  return (key) => {
-    const now = Date.now();
-    const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
-    recent.push(now);
-    hits.set(key, recent);
-    if (hits.size > 5000) {
-      for (const [k, v] of hits) if (now - v[v.length - 1] > windowMs) hits.delete(k);
-    }
-    return recent.length <= max;
+  const recent = (key) => (hits.get(key) || []).filter((t) => Date.now() - t < windowMs);
+  return {
+    allowed: (key) => recent(key).length < max,
+    hit(key) {
+      const list = recent(key);
+      list.push(Date.now());
+      hits.set(key, list);
+      if (hits.size > 5000) for (const [k, v] of hits) if (!recent(k).length) hits.delete(k);
+    },
+    reset: (key) => hits.delete(key),
   };
 }
 
@@ -30,7 +33,7 @@ function sameSecret(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
-function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, randomInt = crypto.randomInt }) {
+function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImpl = fetch, randomInt = crypto.randomInt }) {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
@@ -49,8 +52,10 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
     next();
   });
 
-  const orderLimiter = createLimiter(6, 10 * 60 * 1000);
-  const adminLimiter = createLimiter(15, 10 * 60 * 1000);
+  // Only orders that were actually saved count (15 an hour per connection), and
+  // only WRONG admin keys count (10 per 15 minutes). Normal use never hits these.
+  const orderLimiter = createLimiter(15, 60 * 60 * 1000);
+  const adminLimiter = createLimiter(10, 15 * 60 * 1000);
   const publicConfig = (({ _readme, ...rest }) => rest)(config);
 
   app.get("/health", (_req, res) => res.json({ ok: true, db: Boolean(pool) }));
@@ -63,8 +68,8 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
   // ---- preorders ----
   app.post("/api/preorders", express.json({ limit: "20kb" }), async (req, res, next) => {
     try {
-      if (!orderLimiter(req.ip)) {
-        return res.status(429).json({ error: "Too many preorders from this connection. Please try again in a few minutes." });
+      if (!orderLimiter.allowed(req.ip)) {
+        return res.status(429).json({ error: "You've sent a lot of preorders from this connection. Please try again later." });
       }
       // Hidden field only bots fill in. Pretend it worked, store nothing.
       if (req.body && req.body.website) return res.status(201).json({ code: "BED-00000", ok: true });
@@ -95,12 +100,20 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
       }
       if (!code) throw new Error("Could not generate a unique order code");
 
+      orderLimiter.hit(req.ip);
       notifyTelegram(code, order).catch((err) => console.error("Telegram notify failed:", err.message));
+      notifyEmail(code, order, `${req.protocol}://${req.get("host")}/admin`).catch((err) => console.error("Email notify failed:", err.message));
       res.status(201).json({ ok: true, code, totalPrice: order.totalPrice, totalGrams: order.totalGrams, currency: order.currency });
     } catch (err) {
       next(err);
     }
   });
+
+  async function notifyEmail(code, order, adminUrl) {
+    if (!mailer || !emailTo) return;
+    const message = buildOrderEmail({ code, order, config, adminUrl });
+    await mailer.send({ to: emailTo, ...message });
+  }
 
   async function notifyTelegram(code, order) {
     if (!telegram || !telegram.token || !telegram.chatId) return;
@@ -108,7 +121,7 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
       `New preorder ${code}`,
       ...describeOrder(order, config),
       `Total: ${order.totalPrice} ${order.currency} (${order.totalGrams} g)`,
-      `${order.name} - ${order.phone}${order.email ? ` - ${order.email}` : ""}`,
+      [order.name, order.phone, order.email].filter(Boolean).join(" - "),
       order.delivery === "delivery" ? `Delivery: ${order.address}` : "Pickup",
     ];
     if (order.date) lines.push(`Wanted: ${order.date}`);
@@ -125,8 +138,12 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
   // ---- admin (Ed's list of preorders) ----
   function requireAdmin(req, res, next) {
     if (!adminKey) return res.status(404).json({ error: "Not found." });
-    if (!adminLimiter(req.ip)) return res.status(429).json({ error: "Too many attempts. Try again later." });
-    if (!sameSecret(req.get("x-admin-key") || "", adminKey)) return res.status(401).json({ error: "Wrong key." });
+    if (!adminLimiter.allowed(req.ip)) return res.status(429).json({ error: "Too many wrong keys. Try again in a few minutes." });
+    if (!sameSecret(req.get("x-admin-key") || "", adminKey)) {
+      adminLimiter.hit(req.ip);
+      return res.status(401).json({ error: "Wrong key." });
+    }
+    adminLimiter.reset(req.ip);
     next();
   }
 
@@ -150,9 +167,14 @@ function createApp({ pool, config, adminKey, telegram, fetchImpl = fetch, random
   app.get("/api/admin/preorders", requireAdmin, async (_req, res, next) => {
     try {
       if (!pool) return res.status(503).json({ error: "No database." });
-      const { rows } = await pool.query("SELECT * FROM preorders ORDER BY created_at DESC LIMIT 500");
+      const { rows } = await pool.query("SELECT * FROM preorders ORDER BY created_at DESC LIMIT 2000");
       res.set("Cache-Control", "no-store");
-      res.json({ orders: rows.map(rowToOrder), flavours: config.flavours.map(({ id, name }) => ({ id, name })) });
+      res.json({
+        orders: rows.map(rowToOrder),
+        flavours: config.flavours.map(({ id, name }) => ({ id, name })),
+        sizes: config.sizes,
+        currency: config.currency,
+      });
     } catch (err) {
       next(err);
     }

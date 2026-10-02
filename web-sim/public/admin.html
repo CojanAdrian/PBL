@@ -31,14 +31,23 @@
     </form>
 
     <section id="app" hidden>
-      <div class="adm__bar">
-        <div class="adm__filters" role="group" aria-label="Filter by status" id="filters"></div>
-        <button class="btn btn--ghost btn--sm" type="button" id="refresh"><span>Refresh</span></button>
+      <div class="tabs" role="tablist" aria-label="Admin sections">
+        <button class="tab" role="tab" id="tab-orders" aria-selected="true" aria-controls="panel-orders" type="button">Orders</button>
+        <button class="tab" role="tab" id="tab-stats" aria-selected="false" aria-controls="panel-stats" tabindex="-1" type="button">Stats</button>
+        <button class="btn btn--ghost btn--sm tabs__refresh" type="button" id="refresh"><span>Refresh</span></button>
       </div>
 
-      <div class="adm__prod" id="prod"></div>
-      <p class="adm__empty" id="empty" hidden>No preorders here yet.</p>
-      <ul class="adm__list" id="list"></ul>
+      <div id="panel-orders" role="tabpanel" aria-labelledby="tab-orders">
+        <div class="adm__filters" role="group" aria-label="Filter by status" id="filters"></div>
+        <div class="adm__prod" id="prod"></div>
+        <p class="adm__empty" id="empty" hidden>No preorders here yet.</p>
+        <ul class="adm__list" id="list"></ul>
+      </div>
+
+      <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+        <div class="adm__filters" role="group" aria-label="Time range" id="ranges"></div>
+        <div id="stats"></div>
+      </div>
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

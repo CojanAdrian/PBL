@@ -1,12 +1,33 @@
 {
-  "_readme": "Edit this file to change flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too. PRICES BELOW ARE PLACEHOLDERS - set the real ones.",
+  "_readme": "Edit this file to change flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too.",
   "brand": "Big Ed's Jerky",
   "currency": "MDL",
-  "pricePer100g": 120,
-  "sizes": [50, 100, 150],
+  "prices": {
+    "50": 50,
+    "100": 80,
+    "150": 110
+  },
+  "customPrice": {
+    "base": 20,
+    "perGram": 0.6,
+    "_note": "Used for custom sizes: base + perGram x grams. With these numbers 50 g = 50, 100 g = 80 and 150 g = 110, so custom sizes line up with the presets."
+  },
+  "sizes": [
+    50,
+    100,
+    150
+  ],
   "popularSize": 100,
-  "custom": { "min": 30, "max": 1000, "step": 10 },
-  "limits": { "maxPacksPerLine": 20, "maxLines": 25, "maxTotalGrams": 10000 },
+  "custom": {
+    "min": 30,
+    "max": 1000,
+    "step": 10
+  },
+  "limits": {
+    "maxPacksPerLine": 20,
+    "maxLines": 25,
+    "maxTotalGrams": 10000
+  },
   "paymentNote": "No payment online. Ed confirms your order by phone or message, and you pay on pickup or delivery.",
   "contact": {
     "phone": "",
