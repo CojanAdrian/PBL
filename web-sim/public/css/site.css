@@ -1008,20 +1008,6 @@ html:not(.motion) .craft__progress {
 .fstage__info .btn {
   margin-top: 30px;
 }
-.fstage__info > * {
-  transition: opacity 0.3s, transform 0.5s var(--ease-out);
-}
-.fstage__panel.is-swapping .fstage__info > * {
-  opacity: 0;
-  transform: translateY(14px);
-}
-.fstage__panel.is-swapping .fstage__pouch {
-  opacity: 0;
-  transform: translateY(24px) scale(0.92) rotate(5deg);
-}
-.fstage__pouch {
-  transition: opacity 0.3s, transform 0.5s var(--ease-out);
-}
 @media (min-width: 900px) {
   .fstage {
     grid-template-columns: minmax(250px, 0.7fr) 1.6fr;
@@ -1202,5 +1188,103 @@ html:not(.motion) .craft__progress {
   }
   .ftab__name {
     font-size: 1.2rem;
+  }
+}
+
+/* ================= Swiping the flavour preview ================= */
+.fstage__panel {
+  touch-action: pan-y; /* up and down still scroll the page; sideways is ours */
+}
+.fstage__panel.is-dragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.fstage__pouch,
+.fstage__info {
+  will-change: transform, opacity;
+}
+.fstage__nav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+}
+.fstage__hint {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  transition: opacity 0.5s, max-height 0.5s, margin 0.5s;
+  max-height: 40px;
+}
+.fstage__hint span {
+  display: inline-flex;
+  color: var(--ember);
+  animation: hint-nudge 1.5s var(--ease-out) infinite;
+}
+.fstage__hint span:first-child {
+  animation-name: hint-nudge-left;
+}
+@keyframes hint-nudge {
+  50% { transform: translateX(6px); }
+}
+@keyframes hint-nudge-left {
+  50% { transform: translateX(-6px); }
+}
+.fstage__nav.is-used .fstage__hint {
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.fstage__arrow {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s, border-color 0.2s, transform 0.3s var(--ease-spring);
+}
+.fstage__arrow:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.fstage__arrow:active {
+  transform: scale(0.88);
+}
+.fstage__dots {
+  display: flex;
+  align-items: center;
+}
+.fstage__dot {
+  width: 34px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+}
+.fstage__dot i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: width 0.45s var(--ease-spring), background-color 0.3s;
+}
+.fstage__dot.is-on i {
+  width: 28px;
+  background: var(--dot, var(--ember));
+}
+@media (min-width: 900px) {
+  .fstage__nav {
+    display: none;
   }
 }
