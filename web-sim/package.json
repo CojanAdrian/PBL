@@ -1,8 +1,26 @@
 {
-  "name": "roadfix-web-sim",
+  "name": "bigeds-jerky",
+  "version": "1.0.0",
   "private": true,
-  "description": "Browser simulation of the RoadFix SwiftUI app with a mocked Firebase backend",
+  "description": "Big Ed's Jerky - landing page and preorder system",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/index.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource/anton": "^5.3.0",
+    "compression": "^1.8.2",
+    "express": "^4.22.3",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
   }
 }

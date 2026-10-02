@@ -5,10 +5,7 @@ DerivedData/
 build/
 .DS_Store
 
-# Web simulator
+# Website
 web-sim/node_modules/
 
-# API server
-server/node_modules/
-server/uploads/
 .env

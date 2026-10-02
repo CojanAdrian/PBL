@@ -1,0 +1,69 @@
+{
+  "_readme": "Edit this file to change flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too. PRICES BELOW ARE PLACEHOLDERS - set the real ones.",
+  "brand": "Big Ed's Jerky",
+  "currency": "MDL",
+  "pricePer100g": 120,
+  "sizes": [50, 100, 150],
+  "popularSize": 100,
+  "custom": { "min": 30, "max": 1000, "step": 10 },
+  "limits": { "maxPacksPerLine": 20, "maxLines": 25, "maxTotalGrams": 10000 },
+  "paymentNote": "No payment online. Ed confirms your order by phone or message, and you pay on pickup or delivery.",
+  "contact": {
+    "phone": "",
+    "email": "",
+    "instagram": "",
+    "telegram": ""
+  },
+  "flavours": [
+    {
+      "id": "original",
+      "name": "Original",
+      "heat": 1,
+      "accent": "#d8231f",
+      "band": "#b81d1a",
+      "bandText": "#ffffff",
+      "tagline": "The classic cut.",
+      "notes": "Soy, garlic and a slow kiss of natural smoke. The one everyone starts with."
+    },
+    {
+      "id": "black-pepper",
+      "name": "Black Pepper",
+      "heat": 2,
+      "accent": "#c9c3bb",
+      "band": "#26231f",
+      "bandText": "#f1ece5",
+      "tagline": "Cracked, bold, a proper bite.",
+      "notes": "A heavy crust of cracked black pepper over deep, savoury beef."
+    },
+    {
+      "id": "garlic",
+      "name": "Garlic",
+      "heat": 1,
+      "accent": "#efd9a4",
+      "band": "#e9dcc0",
+      "bandText": "#1c1815",
+      "tagline": "Savoury, golden, unapologetic.",
+      "notes": "Big garlic flavour, mellow all the way through. No heat, all depth."
+    },
+    {
+      "id": "spicy",
+      "name": "Spicy",
+      "heat": 5,
+      "accent": "#ff6a2b",
+      "band": "#d4561a",
+      "bandText": "#ffffff",
+      "tagline": "Slow heat that keeps building.",
+      "notes": "Chili that creeps up on you. For people who ask for extra."
+    },
+    {
+      "id": "bbq",
+      "name": "BBQ",
+      "heat": 2,
+      "accent": "#c47a3e",
+      "band": "#7a3a1c",
+      "bandText": "#ffffff",
+      "tagline": "Sweet, smoky, sticky.",
+      "notes": "Brown sugar and smoke glazed onto every strip."
+    }
+  ]
+}

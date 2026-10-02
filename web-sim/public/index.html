@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Big Ed's Jerky | Real beef. Bold flavor. Preorder yours.</title>
+  <meta name="description" content="Small-batch beef jerky made by hand at home in Moldova. Five bold flavours in 50, 100 and 150 g packs, or any size you like. Build your box and preorder in under a minute.">
+  <meta name="theme-color" content="#0a0908">
+  <link rel="icon" type="image/png" href="/img/favicon.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Big Ed's Jerky | Real beef. Bold flavor.">
+  <meta property="og:description" content="Small-batch beef jerky made by hand in Moldova. Build your box and preorder.">
+  <meta property="og:image" content="/img/og.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/img/logo.webp" as="image">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/builder.css">
+  <script src="/js/flag.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- Shared gradients for the pouch illustrations -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="pouchBody" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2a2624"/><stop offset="1" stop-color="#0d0b0a"/>
+      </linearGradient>
+      <linearGradient id="pouchSheen" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#fff" stop-opacity=".12"/>
+        <stop offset=".22" stop-color="#fff" stop-opacity="0"/>
+        <stop offset=".62" stop-color="#fff" stop-opacity=".05"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="preloader" aria-hidden="true">
+    <div class="preloader__inner">
+      <svg class="preloader__ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" pathLength="100"/></svg>
+      <img src="/img/logo.webp" width="96" height="96" alt="">
+    </div>
+  </div>
+
+  <div class="progress" aria-hidden="true"><span></span></div>
+  <div class="cursor" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <div class="nav__bar">
+      <a class="nav__brand" href="#top" aria-label="Big Ed's Jerky, back to top">
+        <img src="/img/logo.webp" width="44" height="44" alt="">
+        <span>Big Ed's</span>
+      </a>
+      <nav class="nav__links" aria-label="Main">
+        <a href="#story">Story</a>
+        <a href="#craft">Craft</a>
+        <a href="#flavours">Flavours</a>
+      </nav>
+      <a class="btn btn--primary btn--sm magnetic nav__cta" href="#preorder"><span>Preorder</span></a>
+      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Open menu">
+        <span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="menu" id="menu" hidden>
+    <nav aria-label="Mobile">
+      <a href="#story">Story</a>
+      <a href="#craft">Craft</a>
+      <a href="#flavours">Flavours</a>
+      <a href="#preorder" class="menu__cta">Preorder</a>
+    </nav>
+    <p>Real beef. Bold flavor.<br>Made in Moldova.</p>
+  </div>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <canvas class="embers" aria-hidden="true"></canvas>
+      <div class="hero__word" aria-hidden="true">JERKY</div>
+      <div class="container hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow">Small batch · Home-made · Moldova</p>
+          <h1 class="hero__title" id="hero-title">
+            <span class="line"><span>Real beef.</span></span>
+            <span class="line"><span class="hot">Bold flavor.</span></span>
+          </h1>
+          <p class="hero__lead">Big Ed's makes beef jerky at home, by hand, in small batches. Five bold flavours. Pick yours, choose your size, and preorder in under a minute.</p>
+          <div class="hero__cta">
+            <a class="btn btn--primary btn--lg magnetic" href="#preorder"><span>Preorder your pack</span>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a class="btn btn--ghost btn--lg" href="#flavours"><span>Explore flavours</span></a>
+          </div>
+          <ul class="hero__facts">
+            <li><strong>5</strong> flavours</li>
+            <li><strong>50–150 g</strong> or custom</li>
+            <li>Made in <strong>Moldova</strong></li>
+          </ul>
+        </div>
+
+        <div class="hero__visual" data-parallax>
+          <div class="hero__glow" aria-hidden="true"></div>
+          <img class="hero__logo" src="/img/logo.webp" width="900" height="905" alt="Big Ed's Jerky logo: a bull in front of mountains. Made in Moldova. Premium beef jerky." style="--depth:1">
+          <figure class="hero__pouch" style="--depth:2.2">
+            <img src="/img/pouch-front.webp" width="696" height="900" alt="A black Big Ed's Jerky pouch with a window showing the jerky inside" loading="eager">
+          </figure>
+          <a class="hero__badge" href="#preorder" style="--depth:1.6" aria-label="Preorders are open. Go to the preorder builder.">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <defs><path id="badgeCircle" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+              <text><textPath href="#badgeCircle" startOffset="0" textLength="270" lengthAdjust="spacing">PREORDERS OPEN • SMALL BATCH • </textPath></text>
+            </svg>
+            <span class="hero__badge-arrow">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+            </span>
+          </a>
+        </div>
+      </div>
+      <a class="scroll-cue" href="#story" aria-label="Scroll to the story"><span></span></a>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <div class="marquee__group">
+          <span>Real beef</span><i></i><span class="outline">Bold flavor</span><i></i><span>Made in Moldova</span><i></i><span class="outline">Home-made</span><i></i><span>Small batch</span><i></i>
+        </div>
+        <div class="marquee__group">
+          <span>Real beef</span><i></i><span class="outline">Bold flavor</span><i></i><span>Made in Moldova</span><i></i><span class="outline">Home-made</span><i></i><span>Small batch</span><i></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORY -->
+    <section class="story" id="story" aria-labelledby="story-title">
+      <div class="container story__grid">
+        <div class="story__text">
+          <p class="eyebrow" data-reveal>The story</p>
+          <h2 class="h2" id="story-title" data-reveal>Straight from <span class="hot">Ed's kitchen.</span></h2>
+          <p class="story__big" data-words>No factory. No shortcuts. Just one kitchen, real beef and a lot of patience. Every batch of Big Ed's is made by hand at home in Moldova, so every pack tastes like somebody actually cared.</p>
+          <div class="story__ingredients" data-reveal>
+            <h3>What goes in</h3>
+            <ul>
+              <li>Beef</li><li>Soy sauce</li><li>Garlic</li><li>Black pepper</li><li>Chili</li><li>Brown sugar</li><li>Spices</li><li>Natural smoke flavour</li>
+            </ul>
+            <p class="note">Contains soy.</p>
+          </div>
+        </div>
+        <figure class="story__photo" data-clip>
+          <div class="story__photo-frame">
+            <img src="/img/jerky.webp" width="496" height="580" alt="Strips of dark, peppered beef jerky on a wooden board next to a bowl of peppercorns" loading="lazy">
+          </div>
+          <figcaption>Real beef. Bold flavor.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- CRAFT -->
+    <section class="craft" id="craft" aria-labelledby="craft-title">
+      <div class="craft__pin">
+        <div class="craft__track">
+          <div class="craft__intro">
+            <p class="eyebrow">The craft</p>
+            <h2 class="h2" id="craft-title">Slow food,<br><span class="hot">fast flavour.</span></h2>
+            <p class="lead">Four steps, done by hand, every single batch.</p>
+            <p class="craft__hint" aria-hidden="true">Keep scrolling <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></p>
+          </div>
+          <article class="step">
+            <span class="step__num" aria-hidden="true">01</span>
+            <h3>Pick the beef</h3>
+            <p>It starts with real beef, trimmed and sliced into even strips so every piece dries the same.</p>
+          </article>
+          <article class="step">
+            <span class="step__num" aria-hidden="true">02</span>
+            <h3>Marinate</h3>
+            <p>Soy sauce, garlic, black pepper, chili and brown sugar go to work. Time does the rest.</p>
+          </article>
+          <article class="step step--hot">
+            <span class="step__num" aria-hidden="true">03</span>
+            <h3>Dry &amp; smoke</h3>
+            <p>Slow drying with natural smoke flavour builds the deep, chewy bite that makes jerky, jerky.</p>
+          </article>
+          <article class="step">
+            <span class="step__num" aria-hidden="true">04</span>
+            <h3>Seal &amp; send</h3>
+            <p>Packed into pouches in 50, 100 or 150 g, or any size you ask for. Straight to you.</p>
+          </article>
+        </div>
+        <div class="craft__progress" aria-hidden="true"><span></span></div>
+      </div>
+    </section>
+
+    <!-- FLAVOURS -->
+    <section class="flavours" id="flavours" aria-labelledby="flavours-title">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>The flavours</p>
+          <h2 class="h2" id="flavours-title" data-reveal>Pick your <span class="hot">fire.</span></h2>
+          <p class="lead" data-reveal>Five flavours. One obsession. Tap one to explore it, then add it to your box.</p>
+        </header>
+        <div class="fstage" id="fstage" data-reveal>
+          <div class="fstage__tabs" role="tablist" aria-label="Flavours" aria-orientation="vertical"></div>
+          <div class="fstage__panel" role="tabpanel" aria-live="polite">
+            <div class="fstage__glow" aria-hidden="true"></div>
+            <div class="fstage__pouch"></div>
+            <div class="fstage__info">
+              <p class="fstage__tag"></p>
+              <h3 class="fstage__name"></h3>
+              <p class="fstage__notes"></p>
+              <div class="fstage__heat"></div>
+              <button class="btn btn--primary magnetic" type="button" id="fstage-add"><span>Add to my box</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PREORDER -->
+    <section class="preorder" id="preorder" aria-labelledby="preorder-title">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>Preorder</p>
+          <h2 class="h2" id="preorder-title" data-reveal>Build your <span class="hot">box.</span></h2>
+          <p class="lead" data-reveal>Choose your flavours, pick your sizes, and send your preorder. It takes about a minute.</p>
+        </header>
+        <div class="builder" id="builder">
+          <noscript><p class="builder__noscript">The preorder builder needs JavaScript. Please turn it on, or contact Ed directly.</p></noscript>
+          <p class="builder__loading" id="builder-loading">Loading the menu…</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__grid">
+      <div class="footer__brand">
+        <img src="/img/logo.webp" width="96" height="96" alt="Big Ed's Jerky" loading="lazy">
+        <p>Real beef. Bold flavor.<br>Made by hand in Moldova.</p>
+      </div>
+      <nav class="footer__nav" aria-label="Footer">
+        <a href="#story">Story</a>
+        <a href="#craft">Craft</a>
+        <a href="#flavours">Flavours</a>
+        <a href="#preorder">Preorder</a>
+      </nav>
+      <ul class="footer__contact" id="footer-contact"></ul>
+    </div>
+    <div class="container footer__legal">
+      <p>© <span id="year">2026</span> Big Ed's Jerky. Contains soy. Store in a cool, dry place and keep sealed after opening.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/vendor/gsap.min.js" defer></script>
+  <script src="/vendor/ScrollTrigger.min.js" defer></script>
+  <script src="/vendor/lenis.min.js" defer></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

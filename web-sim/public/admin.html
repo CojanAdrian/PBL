@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0a0908">
+  <title>Preorders | Big Ed's Jerky</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <main class="adm">
+    <header class="adm__head">
+      <img src="/img/logo.webp" width="56" height="56" alt="">
+      <div>
+        <h1>Preorders</h1>
+        <p class="adm__sub">Big Ed's Jerky, private page for Ed</p>
+      </div>
+      <button class="btn btn--ghost btn--sm" type="button" id="lock" hidden><span>Lock</span></button>
+    </header>
+
+    <form class="adm__login" id="login">
+      <label class="lbl" for="key">Admin key</label>
+      <div class="adm__row">
+        <input class="input" id="key" type="password" autocomplete="current-password" required>
+        <button class="btn btn--primary" type="submit"><span>Open</span></button>
+      </div>
+      <p class="err" id="login-err" role="alert"></p>
+    </form>
+
+    <section id="app" hidden>
+      <div class="adm__bar">
+        <div class="adm__filters" role="group" aria-label="Filter by status" id="filters"></div>
+        <button class="btn btn--ghost btn--sm" type="button" id="refresh"><span>Refresh</span></button>
+      </div>
+
+      <div class="adm__prod" id="prod"></div>
+      <p class="adm__empty" id="empty" hidden>No preorders here yet.</p>
+      <ul class="adm__list" id="list"></ul>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
