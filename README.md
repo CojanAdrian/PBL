@@ -17,16 +17,17 @@ Everything lives in [web-sim/](web-sim/): a small Node server that serves the we
 
 Set in `web-sim/config.json`:
 
-| Pack | Price |
+| What | Price |
 | --- | --- |
-| 50 g | 50 MDL |
-| 100 g | 80 MDL |
-| 150 g | 110 MDL |
-| Custom size | 20 + 0.6 per gram (so 250 g = 170, 500 g = 320, 1000 g = 620) |
+| Beef, 100 g pack | 130 lei |
+| Chicken, 100 g pack | 70 lei |
+| Taster box (all six flavours) | 285 lei |
 
-- `prices`: the price of each preset size. Change these freely.
-- `customPrice`: `base` and `perGram` for custom sizes. The defaults line up exactly with the three presets above.
-- `currency`: shown next to every price. It is `MDL`; change it to `lei` if you prefer.
+- `meats[].prices`: the price of a pack for each meat, by size (`"100": 130`).
+- `boxes`: the Taster box: its price, its total weight (`grams`) and its text. It is the first quick start in the order builder.
+- `sizes`: the pack sizes on offer. Only `100` for now.
+- `custom`: custom pack sizes are **switched off** (`"enabled": false`). Set it to `true` to bring the size picker back; a custom pack is then priced from the 100 g price (250 g beef = 325 lei).
+- `currency`: shown next to every price (`lei`).
 
 The server checks and prices every preorder from this same file, so what people see is what they are charged.
 
@@ -51,6 +52,7 @@ The server checks and prices every preorder from this same file, so what people 
    | `EMAIL_FROM` | The sender, e.g. `Big Ed's Jerky <orders@yourdomain.com>` |
    | `ORDER_EMAIL_TO` | *(optional)* who gets the emails. Defaults to `kenny@igtfreight.com` |
    | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | *(optional)* a Telegram message for every preorder |
+   | `SHEETS_WEBHOOK_URL`, `SHEETS_TOKEN` | *(optional)* copy every order into a Google Sheet, live (see below) |
 
 4. **Settings → Networking → Generate Domain**.
 
@@ -76,6 +78,26 @@ Railway blocks normal email (SMTP) on its cheaper plans, so the server uses an e
 **Check that it works:** open `/admin`. At the top of the Orders tab a box says whether email is on or off. Press **Send test email**: it sends a message to `ORDER_EMAIL_TO` right away and shows the exact reason if the email service refuses it (wrong key, sender not verified, and so on).
 
 If an email fails, the preorder is still saved, the problem is shown in that box, and it is written to the Railway logs.
+
+## Google Sheets (every order, live)
+
+Every new preorder is added to a Google Sheet as it comes in, and when Ed changes an order's status on `/admin` the same row updates. One row per order, found by its order code.
+
+Setup, about 5 minutes:
+
+1. Create a new Google Sheet (for example "Big Ed's orders"). Under *File → Settings* set the time zone to *(GMT+02:00) Chisinau*.
+2. In the sheet: *Extensions → Apps Script*. Delete what is there, paste the whole of [`web-sim/google-sheets/apps-script.gs`](web-sim/google-sheets/apps-script.gs), and save.
+3. Still in Apps Script: *Project Settings* (gear icon) → *Script properties* → *Add script property*. Name `TOKEN`, value: a long random password you make up. Save.
+4. *Deploy → New deployment*. Type: *Web app*. *Execute as*: **Me**. *Who has access*: **Anyone**. Deploy, allow the permissions Google asks for, and copy the *Web app URL* (it ends in `/exec`).
+5. In Railway, set `SHEETS_WEBHOOK_URL` to that URL and `SHEETS_TOKEN` to the same password as `TOKEN`.
+6. Open `/admin`. The Orders tab shows a "Google Sheets is on" box. Press **Sync all orders** once: every order so far is written to the sheet (an `Orders` tab is created with the headings). From then on it updates by itself.
+
+Notes:
+- "Anyone" only means the script's web address accepts requests. The sheet itself stays private, and the script refuses anything without the right `TOKEN`.
+- If an update ever fails (Google down, wrong token), the order is still saved, the reason shows in the box on `/admin`, and **Sync all orders** fixes the sheet.
+- Changes made by typing in the sheet do not flow back to the website. The website (`/admin`) is the source of truth.
+- Need Excel? *File → Download → Microsoft Excel (.xlsx)* in the sheet.
+- If you change the script later, use *Deploy → Manage deployments → Edit → New version* so the URL stays the same.
 
 ## Ed's preorder list
 

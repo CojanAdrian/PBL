@@ -6,9 +6,15 @@ export function fmtGrams(g) {
   return g >= 1000 ? `${+(g / 1000).toFixed(2)} kg` : `${g} g`;
 }
 
-// Gives every flavour its meat and full name ("Texas BBQ Beef"), and adds one
-// pouch colour gradient per meat to the shared SVG defs in index.html.
+// Gives every flavour its meat and full name ("Texas BBQ Beef"), marks the
+// boxes, and adds one pouch colour gradient per meat to the shared SVG defs.
 export function prepareMenu(cfg) {
+  for (const b of cfg.boxes || []) {
+    b.box = true;
+    b.fullName = b.name;
+    b.accent = b.accent || "#ff6a2b";
+    b.stripes = cfg.flavours.map((f) => f.band);
+  }
   const meats = new Map((cfg.meats || []).map((m) => [m.id, m]));
   for (const f of cfg.flavours) {
     const meat = meats.get(f.meat);
@@ -34,6 +40,7 @@ export function prepareMenu(cfg) {
 
 // `mini` drops the small print, for sizes where text would be unreadable.
 export function pouchSVG(flavour, { grams = 100, mini = false, label = "" } = {}) {
+  if (flavour.box) return boxSVG(flavour, { mini, label });
   const body = "M16 30Q16 16 30 16H170Q184 16 184 30V264Q184 280 168 280H32Q16 280 16 264Z";
   const aria = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
   const name = esc(flavour.name.toUpperCase());
@@ -54,6 +61,26 @@ export function pouchSVG(flavour, { grams = 100, mini = false, label = "" } = {}
     <path d="M16 214H184" stroke="rgba(255,255,255,.28)" stroke-width="1"/>
     ${text}
     <path d="${body}" fill="url(#pouchSheen)" pointer-events="none"/>
+  </svg>`;
+}
+
+// A gift-style carton with one colour stripe per flavour inside it.
+function boxSVG(box, { mini = false, label = "" } = {}) {
+  const aria = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
+  const stripes = box.stripes || [];
+  const w = 152 / Math.max(1, stripes.length);
+  const text = mini
+    ? ""
+    : `<text x="92" y="200" text-anchor="middle" class="pouch__flavour" fill="#efe8e1" font-size="24" letter-spacing="1.5">${esc(box.name.toUpperCase())}</text>
+       <text x="92" y="266" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9.5" font-weight="700" letter-spacing="1.4">ALL ${stripes.length} FLAVOURS</text>`;
+  return `<svg class="pouch pouch--box" viewBox="0 0 200 296" ${aria} focusable="false">
+    <path d="M16 60L42 30H190L168 60Z" fill="#3a3330" stroke="rgba(255,255,255,.12)" stroke-width="1.2"/>
+    <path d="M168 60L190 30V250L168 280Z" fill="#141110" stroke="rgba(255,255,255,.08)" stroke-width="1.2"/>
+    <rect x="16" y="60" width="152" height="220" rx="4" fill="url(#pouchBody)" stroke="rgba(255,255,255,.12)" stroke-width="1.5"/>
+    <image href="/img/logo.webp" x="${mini ? 24 : 38}" y="${mini ? 70 : 72}" width="${mini ? 136 : 108}" height="${mini ? 136 : 108}" preserveAspectRatio="xMidYMid meet"/>
+    ${stripes.map((c, i) => `<rect x="${16 + i * w}" y="${mini ? 214 : 212}" width="${w + 0.5}" height="${mini ? 40 : 30}" fill="${esc(c)}"/>`).join("")}
+    ${text}
+    <rect x="16" y="60" width="152" height="220" rx="4" fill="url(#pouchSheen)" pointer-events="none"/>
   </svg>`;
 }
 

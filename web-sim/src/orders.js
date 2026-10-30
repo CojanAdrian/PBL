@@ -4,18 +4,26 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Price of ONE pack. Preset sizes use the table in config.json; any other
-// (custom) size uses base + perGram x grams.
-function lineTotal(grams, config) {
-  const fixed = config.prices?.[String(grams)];
+const findBox = (id, config) => (config.boxes || []).find((b) => b.id === id);
+
+// Price of ONE pack or box. A box has a fixed price. A pack uses its meat's
+// price table; a custom size (when switched on) is priced from the popular size.
+function lineTotal(id, grams, config) {
+  const box = findBox(id, config);
+  if (box) return box.price;
+  const flavour = config.flavours.find((f) => f.id === id);
+  const prices = (config.meats || []).find((m) => m.id === flavour?.meat)?.prices || {};
+  const fixed = prices[String(grams)];
   if (Number.isFinite(fixed)) return fixed;
-  const { base = 0, perGram = 0 } = config.customPrice || {};
-  return Math.round(base + perGram * grams);
+  return Math.round((prices[String(config.popularSize)] / config.popularSize) * grams);
 }
 
-function isAllowedGrams(grams, config) {
+function isAllowedGrams(id, grams, config) {
   if (!Number.isInteger(grams)) return false;
+  const box = findBox(id, config);
+  if (box) return grams === box.grams;
   if (config.sizes.includes(grams)) return true;
+  if (!config.custom || config.custom.enabled === false) return false;
   const { min, max, step } = config.custom;
   return grams >= min && grams <= max && grams % step === 0;
 }
@@ -30,14 +38,14 @@ function validateOrder(body, config, now = new Date()) {
   const input = body && typeof body === "object" ? body : {};
 
   // ---- items ----
-  const flavourIds = new Set(config.flavours.map((f) => f.id));
+  const flavourIds = new Set([...config.flavours, ...(config.boxes || [])].map((f) => f.id));
   const merged = new Map();
   const rawItems = Array.isArray(input.items) ? input.items : [];
   for (const raw of rawItems) {
     const flavour = String(raw?.flavour ?? "");
     const grams = Number(raw?.grams);
     const qty = Number(raw?.qty);
-    if (!flavourIds.has(flavour) || !isAllowedGrams(grams, config) || !Number.isInteger(qty) || qty < 1) {
+    if (!flavourIds.has(flavour) || !isAllowedGrams(flavour, grams, config) || !Number.isInteger(qty) || qty < 1) {
       errors.items = "Something in your box isn't valid. Please check it and try again.";
       break;
     }
@@ -91,7 +99,7 @@ function validateOrder(body, config, now = new Date()) {
 
   if (Object.keys(errors).length) return { ok: false, errors };
 
-  const totalPrice = items.reduce((sum, i) => sum + lineTotal(i.grams, config) * i.qty, 0);
+  const totalPrice = items.reduce((sum, i) => sum + lineTotal(i.flavour, i.grams, config) * i.qty, 0);
   const totalPacks = items.reduce((sum, i) => sum + i.qty, 0);
   return {
     ok: true,
@@ -103,7 +111,7 @@ function validateOrder(body, config, now = new Date()) {
       address: delivery === "delivery" ? address : "",
       date,
       note,
-      items: items.map((i) => ({ ...i, price: lineTotal(i.grams, config) })),
+      items: items.map((i) => ({ ...i, price: lineTotal(i.flavour, i.grams, config) })),
       totalGrams,
       totalPacks,
       totalPrice,
@@ -120,15 +128,24 @@ function makeCode(randomInt) {
   return `BED-${code}`;
 }
 
-// Flavour id -> full name with the meat, e.g. "Texas BBQ Beef".
+// Flavour id -> full name with the meat, e.g. "Texas BBQ Beef". Boxes keep their own name.
 function flavourNames(config) {
   const meats = new Map((config.meats || []).map((m) => [m.id, m.name]));
-  return new Map(config.flavours.map((f) => [f.id, [f.name, meats.get(f.meat)].filter(Boolean).join(" ")]));
+  return new Map([
+    ...config.flavours.map((f) => [f.id, [f.name, meats.get(f.meat)].filter(Boolean).join(" ")]),
+    ...(config.boxes || []).map((b) => [b.id, b.name]),
+  ]);
+}
+
+// "2 x 100 g Texas BBQ Beef", or "1 x Taster box" for a box.
+function describeItem(item, config, names = flavourNames(config)) {
+  const name = names.get(item.flavour) || item.flavour;
+  return findBox(item.flavour, config) ? `${item.qty} x ${name}` : `${item.qty} x ${item.grams} g ${name}`;
 }
 
 function describeOrder(order, config) {
   const names = flavourNames(config);
-  return order.items.map((i) => `${i.qty} x ${i.grams} g ${names.get(i.flavour) || i.flavour}`);
+  return order.items.map((i) => describeItem(i, config, names));
 }
 
-module.exports = { validateOrder, makeCode, describeOrder, lineTotal, flavourNames };
+module.exports = { validateOrder, makeCode, describeOrder, describeItem, lineTotal, flavourNames };

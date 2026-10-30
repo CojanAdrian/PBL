@@ -1,24 +1,15 @@
 {
-  "_readme": "Edit this file to change meats, flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too.",
+  "_readme": "Edit this file to change meats, flavours, boxes, sizes and prices. The server uses it to check and price every preorder, and the website reads it too.",
   "brand": "Big Ed's Jerky",
-  "currency": "MDL",
-  "prices": {
-    "50": 50,
-    "100": 80,
-    "150": 110
-  },
-  "customPrice": {
-    "base": 20,
-    "perGram": 0.6,
-    "_note": "Used for custom sizes: base + perGram x grams. With these numbers 50 g = 50, 100 g = 80 and 150 g = 110, so custom sizes line up with the presets."
-  },
+  "currency": "lei",
+  "_prices": "Prices live on each meat below (price of one pack, by size) and on each box.",
   "sizes": [
-    50,
-    100,
-    150
+    100
   ],
   "popularSize": 100,
   "custom": {
+    "enabled": false,
+    "_note": "Custom pack sizes are switched off for now. Set enabled to true to bring back the size picker; a custom pack is priced from the 100 g price (e.g. 250 g beef = 2.5 x 130).",
     "min": 30,
     "max": 1000,
     "step": 10
@@ -39,6 +30,9 @@
     {
       "id": "beef",
       "name": "Beef",
+      "prices": {
+        "100": 130
+      },
       "pouch": {
         "top": "#2a2624",
         "bottom": "#0d0b0a",
@@ -48,6 +42,9 @@
     {
       "id": "chicken",
       "name": "Chicken",
+      "prices": {
+        "100": 70
+      },
       "pouch": {
         "top": "#7b5a3f",
         "bottom": "#4b3424",
@@ -121,6 +118,17 @@
       "bandText": "#ffffff",
       "tagline": "Sweet first, then the fire.",
       "notes": "Sweet honey heat on lean chicken. Sticky, spicy, hard to stop."
+    }
+  ],
+  "boxes": [
+    {
+      "id": "taster-box",
+      "name": "Taster box",
+      "price": 285,
+      "grams": 180,
+      "_note": "grams = what the whole box weighs. Six small 30 g packs, one of every flavour.",
+      "tagline": "All six flavours in one box.",
+      "notes": "A small pack of every flavour, beef and chicken. The easiest way to find your favourite."
     }
   ]
 }

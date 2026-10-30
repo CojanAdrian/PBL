@@ -14,12 +14,14 @@ try {
 }
 let orders = [];
 let names = new Map();
-let sizes = [50, 100, 150];
+let boxes = new Set();
+let sizes = [100];
 let currency = "MDL";
 let tab = "orders";
 let filter = "new";
 let range = "all";
 let email = { enabled: false };
+let sheet = { enabled: false };
 
 const money = (n) => Number(n).toLocaleString("en-US");
 const weight = (g) => (g >= 1000 ? `${+(g / 1000).toFixed(2)} kg` : `${g} g`);
@@ -36,9 +38,11 @@ async function load() {
   const data = await api("/api/admin/preorders");
   orders = data.orders;
   names = new Map(data.flavours.map((f) => [f.id, f.name]));
+  boxes = new Set(data.flavours.filter((f) => f.box).map((f) => f.id));
   sizes = data.sizes || sizes;
   currency = data.currency || currency;
   email = data.email || email;
+  sheet = data.sheet || sheet;
   $("#login").hidden = true;
   $("#app").hidden = false;
   $("#lock").hidden = false;
@@ -77,8 +81,26 @@ function renderMail() {
     <button class="btn btn--ghost btn--sm" type="button" id="mail-test"><span>Send test email</span></button>`;
 }
 
+function renderSheet() {
+  const el = $("#sheet");
+  if (!sheet.enabled) {
+    el.className = "mail mail--off";
+    el.innerHTML = `<div><strong>Google Sheets is off.</strong><p>Orders are not copied to a sheet. Set <code>SHEETS_WEBHOOK_URL</code> and <code>SHEETS_TOKEN</code> on Railway (see the README).</p></div>`;
+    return;
+  }
+  const failed = Boolean(sheet.lastError);
+  el.className = `mail ${failed ? "mail--bad" : "mail--on"}`;
+  el.innerHTML = `<div><strong>${failed ? "The last update to the sheet failed" : "Google Sheets is on"}</strong>
+      <p>New orders and status changes are written to the sheet straight away.${failed ? ` <span class="mail__err">${esc(sheet.lastError)}</span>` : ""}</p></div>
+    <button class="btn btn--ghost btn--sm" type="button" id="sheet-sync"><span>Sync all orders</span></button>`;
+}
+
+// "2 × 100 g Texas BBQ Beef", or "1 × Taster box".
+const itemLabel = (i) => `${i.qty} × ${boxes.has(i.flavour) ? "" : `${i.grams} g `}${names.get(i.flavour) || i.flavour}`;
+
 function renderOrders() {
   renderMail();
+  renderSheet();
   const counts = Object.fromEntries(STATUSES.map((s) => [s, orders.filter((o) => o.status === s).length]));
   chips($("#filters"), [["all", "All", orders.length], ...STATUSES.map((s) => [s, LABEL[s], counts[s]])], filter, "f");
 
@@ -111,7 +133,7 @@ function card(o) {
   return `<li class="order" data-status="${o.status}">
     <div class="order__top"><span class="order__code">${esc(o.code)}</span><span class="order__when">${esc(when)}</span></div>
     <p class="order__who">${who}</p>
-    <ul class="order__items">${o.items.map((i) => `<li><span>${i.qty} × ${i.grams} g ${esc(names.get(i.flavour) || i.flavour)}</span><span>${money(i.price * i.qty)} ${esc(o.currency)}</span></li>`).join("")}</ul>
+    <ul class="order__items">${o.items.map((i) => `<li><span>${esc(itemLabel(i))}</span><span>${money(i.price * i.qty)} ${esc(o.currency)}</span></li>`).join("")}</ul>
     <p class="order__meta">${o.delivery === "delivery" ? `Delivery: ${esc(o.address)}` : "Pickup"}${o.date ? ` · wanted ${esc(o.date)}` : ""}${o.note ? `<br>Note: ${esc(o.note)}` : ""}</p>
     <div class="order__foot">
       <span class="order__total">${money(o.totalPrice)} ${esc(o.currency)} <small class="order__when">${weight(o.totalGrams)}</small></span>
@@ -181,13 +203,13 @@ function renderStats() {
   // Pack sizes
   const sz = new Map();
   for (const o of live) for (const i of o.items) {
-    const k = sizes.includes(i.grams) ? `${i.grams} g` : "Custom sizes";
+    const k = boxes.has(i.flavour) ? names.get(i.flavour) || i.flavour : sizes.includes(i.grams) ? `${i.grams} g` : "Custom sizes";
     const s = sz.get(k) || { packs: 0, value: 0 };
     s.packs += i.qty;
     s.value += i.price * i.qty;
     sz.set(k, s);
   }
-  const order = [...sizes.map((g) => `${g} g`), "Custom sizes"];
+  const order = [...sizes.map((g) => `${g} g`), "Custom sizes", ...[...boxes].map((id) => names.get(id) || id)];
   const sizeRows = order.filter((k) => sz.has(k)).map((k) => `<tr><th scope="row">${k}</th><td>${sz.get(k).packs}</td><td>${money(sz.get(k).value)} ${cur}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`;
 
   const pick = live.filter((o) => o.delivery === "pickup").length;
@@ -377,6 +399,21 @@ $("#mail").addEventListener("click", async (e) => {
     toast("The test email failed. The reason is shown on the page.");
   }
   renderMail();
+});
+$("#sheet").addEventListener("click", async (e) => {
+  const btn = e.target.closest("#sheet-sync");
+  if (!btn) return;
+  btn.disabled = true;
+  btn.querySelector("span").textContent = "Syncing…";
+  try {
+    const r = await api("/api/admin/sheet-sync", { method: "POST", body: "{}" });
+    toast(`${r.count} ${r.count === 1 ? "order is" : "orders are"} in the sheet now.`);
+    sheet = { ...sheet, lastError: null };
+  } catch (err) {
+    sheet = { ...sheet, lastError: err.message };
+    toast("The sync failed. The reason is shown on the page.");
+  }
+  renderSheet();
 });
 $("#refresh").addEventListener("click", () => load().then(() => toast("Updated.")).catch(() => toast("Couldn't refresh.")));
 $("#lock").addEventListener("click", () => {

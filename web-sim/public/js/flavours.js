@@ -27,7 +27,7 @@ export function initFlavours(cfg) {
   panel.id = "fpanel";
   tabsEl.innerHTML = cfg.flavours
     .map(
-      (f) => `<button class="ftab" role="tab" type="button" id="ftab-${esc(f.id)}" aria-controls="fpanel" aria-selected="false" tabindex="-1" data-id="${esc(f.id)}" style="--tab:${esc(f.accent)}">
+      (f) => `<button class="ftab" role="tab" type="button" id="ftab-${esc(f.id)}" aria-controls="fpanel" aria-selected="false" tabindex="-1" data-id="${esc(f.id)}" data-meat="${esc(f.meat || "")}" style="--tab:${esc(f.accent)}">
         <span class="ftab__dot" aria-hidden="true"></span>
         <span class="ftab__text">${f.meatName ? `<small class="ftab__meat">${esc(f.meatName)}</small>` : ""}<span class="ftab__name">${esc(f.name)}</span></span>
         <span class="ftab__heat">${heatBars(f.heat, { small: true })}</span>
@@ -132,6 +132,7 @@ export function initFlavours(cfg) {
     for (const dot of dots) dot.classList.toggle("is-on", dot.dataset.id === id);
     panel.setAttribute("aria-labelledby", `ftab-${id}`);
     stage.style.setProperty("--accent", flavour.accent);
+    stage.dataset.meat = flavour.meat || "";
     seq += 1;
     for (const el of [pouchEl, infoEl]) el.getAnimations().forEach((a) => a.cancel());
     if (!animate || reduce) {

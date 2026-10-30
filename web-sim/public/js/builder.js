@@ -20,17 +20,29 @@ const ICON = {
 };
 
 export function initBuilder(cfg, mount) {
-  const byId = new Map(cfg.flavours.map((f) => [f.id, f]));
+  const boxes = cfg.boxes || [];
+  const products = [...boxes, ...cfg.flavours];
+  const byId = new Map(products.map((f) => [f.id, f]));
   const cur = cfg.currency;
-  // Price of one pack: the preset table first, then base + per gram for custom sizes.
-  const price = (grams) => {
-    const fixed = cfg.prices && cfg.prices[String(grams)];
+  const meatPrices = new Map((cfg.meats || []).map((m) => [m.id, m.prices || {}]));
+  // Price of one pack or box. Boxes have a fixed price; packs use their meat's
+  // price table, and a custom size (when switched on) is priced from the popular size.
+  const price = (id, grams) => {
+    const f = byId.get(id);
+    if (f?.box) return f.price;
+    const prices = meatPrices.get(f?.meat) || {};
+    const fixed = prices[String(grams)];
     if (Number.isFinite(fixed)) return fixed;
-    const { base = 0, perGram = 0 } = cfg.customPrice || {};
-    return Math.round(base + perGram * grams);
+    return Math.round((prices[String(cfg.popularSize)] / cfg.popularSize) * grams);
   };
   const clampQty = (n) => Math.max(1, Math.min(cfg.limits.maxPacksPerLine, n));
-  const { min: CMIN, max: CMAX, step: CSTEP } = cfg.custom;
+  const customOn = Boolean(cfg.custom) && cfg.custom.enabled !== false;
+  const { min: CMIN, max: CMAX, step: CSTEP } = cfg.custom || {};
+  // The size picker only shows when there is something to pick.
+  const pickSize = customOn || cfg.sizes.length > 1;
+  const validGrams = (f, g) =>
+    Number.isInteger(g) && (f.box ? g === f.grams : cfg.sizes.includes(g) || (customOn && g >= CMIN && g <= CMAX && g % CSTEP === 0));
+  const qtyText = (l) => (byId.get(l.flavour)?.box ? `${l.qty} × box` : `${l.qty} × ${l.grams} g`);
   const num = (n) => Number(n).toLocaleString("en-US");
 
   const state = {
@@ -48,8 +60,8 @@ export function initBuilder(cfg, mount) {
       const saved = JSON.parse(store.get(STORE_KEY) || "null");
       if (!saved) return;
       state.lines = (saved.lines || [])
-        .filter((l) => byId.has(l.flavour) && Number.isInteger(l.grams) && l.grams >= CMIN && l.grams <= CMAX)
-        .map((l) => ({ flavour: l.flavour, grams: l.grams, qty: clampQty(Number(l.qty) || 1), custom: !cfg.sizes.includes(l.grams) || Boolean(l.custom) }));
+        .filter((l) => byId.has(l.flavour) && validGrams(byId.get(l.flavour), l.grams))
+        .map((l) => ({ flavour: l.flavour, grams: l.grams, qty: clampQty(Number(l.qty) || 1), custom: customOn && !byId.get(l.flavour).box && (!cfg.sizes.includes(l.grams) || Boolean(l.custom)) }));
       Object.assign(state.d, { name: "", phone: "", email: "", address: "", note: "" }, saved.d || {});
       if (state.d.delivery !== "delivery") state.d.delivery = "pickup";
     } catch {
@@ -71,7 +83,7 @@ export function initBuilder(cfg, mount) {
     for (const l of state.lines) {
       grams += l.grams * l.qty;
       packs += l.qty;
-      cost += price(l.grams) * l.qty;
+      cost += price(l.flavour, l.grams) * l.qty;
     }
     return { grams, packs, cost };
   }
@@ -79,23 +91,23 @@ export function initBuilder(cfg, mount) {
   // ---------- Skeleton ----------
   // Flavours grouped by meat (beef, chicken), in config order.
   const meats = cfg.meats || [];
-  const groups = meats.length
-    ? meats.map((m) => ({ title: `${m.name} jerky`, flavours: cfg.flavours.filter((f) => f.meat === m.id) })).filter((g) => g.flavours.length > 0)
-    : [{ title: "", flavours: cfg.flavours }];
+  const groups = [
+    { title: boxes.length > 1 ? "Boxes" : "", flavours: boxes },
+    ...(meats.length
+      ? meats.map((m) => ({ title: `${m.name} jerky`, flavours: cfg.flavours.filter((f) => f.meat === m.id) }))
+      : [{ title: "", flavours: cfg.flavours }]),
+  ].filter((g) => g.flavours.length > 0);
   const presets = [
-    {
-      id: "taster",
-      title: "Taster set",
-      desc: `${meats.length > 1 ? `Every flavour in ${meats.map((m) => m.name.toLowerCase()).join(" and ")}` : "One of every flavour"}, ${cfg.sizes[0]} g each`,
-      lines: cfg.flavours.map((f) => ({ flavour: f.id, grams: cfg.sizes[0], qty: 1 })),
-    },
+    ...boxes.map((b) => ({ id: b.id, title: b.name, desc: b.tagline, lines: [{ flavour: b.id, grams: b.grams, qty: 1 }] })),
     ...meats.map((m) => ({
       id: m.id,
       title: `${m.name} lineup`,
       desc: `Every ${m.name.toLowerCase()} flavour, ${cfg.popularSize} g each`,
       lines: cfg.flavours.filter((f) => f.meat === m.id).map((f) => ({ flavour: f.id, grams: cfg.popularSize, qty: 1 })),
     })),
-  ].filter((p) => p.lines.length > 0);
+  ]
+    .filter((p) => p.lines.length > 0)
+    .map((p) => ({ ...p, total: p.lines.reduce((s, l) => s + price(l.flavour, l.grams) * l.qty, 0) }));
 
   mount.innerHTML = `
   <div class="builder__main">
@@ -108,16 +120,16 @@ export function initBuilder(cfg, mount) {
     <section class="panel" data-panel="1" aria-labelledby="p1-title">
       <div class="panel__head">
         <h3 class="panel__title" id="p1-title" tabindex="-1">Fill your box</h3>
-        <p class="panel__sub">Start with a quick pick, or add flavours one by one. Every pack size and amount is up to you.</p>
+        <p class="panel__sub">Start with a quick pick, or add flavours one by one. ${pickSize ? "Every pack size and amount is up to you." : `Every pack is ${cfg.popularSize} g; take as many as you like.`}</p>
         <ol class="howto" aria-label="How it works">
           <li><b>1</b><span>Tap <strong>Add</strong> on a flavour</span></li>
-          <li><b>2</b><span>Pick a size and how many</span></li>
+          <li><b>2</b><span>${pickSize ? "Pick a size and how many" : "Choose how many"}</span></li>
           <li><b>3</b><span>Press <strong>Continue</strong></span></li>
         </ol>
       </div>
       <p class="lbl">Quick starts</p>
       <div class="presets">
-        ${presets.map((p) => `<button class="preset" type="button" data-preset="${p.id}"><strong>${esc(p.title)}</strong><span>${esc(p.desc)}</span></button>`).join("")}
+        ${presets.map((p) => `<button class="preset" type="button" data-preset="${p.id}"><strong>${esc(p.title)}</strong><span>${esc(p.desc)}</span><em>${num(p.total)} ${esc(cur)}</em></button>`).join("")}
       </div>
       <p class="lbl">Or pick your flavours</p>
       ${groups.map((g) => `${g.title ? `<h4 class="meathead">${esc(g.title)}</h4>` : ""}<ul class="frows">${g.flavours.map(rowHTML).join("")}</ul>`).join("")}
@@ -231,13 +243,36 @@ export function initBuilder(cfg, mount) {
 
   function rowHTML(f) {
     const id = esc(f.id);
-    return `<li class="frow" data-id="${id}" style="--accent:${esc(f.accent)}">
+    const unit = f.box ? "box" : "pack";
+    const each = `${num(price(f.id, f.box ? f.grams : cfg.popularSize))} ${cur} · ${f.box ? "per box" : `${cfg.popularSize} g`}`;
+    const sizeField = f.box || !pickSize
+      ? ""
+      : `<div class="field field--size">
+              <span class="lbl" id="sz-${id}">Pack size</span>
+              <div class="seg" role="radiogroup" aria-labelledby="sz-${id}">
+                ${cfg.sizes.map((s) => `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="${s}">${s} g${s === cfg.popularSize ? '<span class="pop">Popular</span>' : ""}</button>`).join("")}
+                ${customOn ? `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="custom">Custom</button>` : ""}
+              </div>
+            </div>`;
+    const customField = f.box || !customOn
+      ? ""
+      : `<div class="grow" data-custom>
+            <div class="grow__clip">
+              <div class="custom-in">
+                <span class="lbl">Custom size per pack</span>
+                <input class="range" type="range" min="${CMIN}" max="${CMAX}" step="${CSTEP}" data-act="range" aria-label="Custom pack size in grams for ${esc(f.fullName)}">
+                <label class="num"><input type="number" min="${CMIN}" max="${CMAX}" step="${CSTEP}" inputmode="numeric" data-act="gnum" aria-label="Grams per pack"><span>g</span></label>
+              </div>
+            </div>
+          </div>`;
+    return `<li class="frow${f.box ? " frow--box" : ""}" data-id="${id}" style="--accent:${esc(f.accent)}">
       <div class="frow__top">
         <div class="frow__pouch">${pouchSVG(f, { mini: true })}</div>
         <div class="frow__info">
           <h4 class="frow__name">${esc(f.name)}</h4>
           <p class="frow__tag">${esc(f.tagline)}</p>
-          ${heatBars(f.heat, { small: true })}
+          ${f.box ? "" : heatBars(f.heat, { small: true })}
+          <p class="frow__each">${esc(each)}</p>
         </div>
         <div class="frow__act">
           <button class="btn-add" type="button" data-act="add" aria-label="Add ${esc(f.fullName)} to your box">${ICON.plus}<span>Add</span></button>
@@ -247,32 +282,18 @@ export function initBuilder(cfg, mount) {
       <div class="grow" data-ctl>
         <div class="grow__clip">
           <div class="frow__ctl-in">
-            <div class="field field--size">
-              <span class="lbl" id="sz-${id}">Pack size</span>
-              <div class="seg" role="radiogroup" aria-labelledby="sz-${id}">
-                ${cfg.sizes.map((s) => `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="${s}">${s} g${s === cfg.popularSize ? '<span class="pop">Popular</span>' : ""}</button>`).join("")}
-                <button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="custom">Custom</button>
-              </div>
-            </div>
+            ${sizeField}
             <div class="field">
-              <span class="lbl" id="q-${id}">Packs</span>
+              <span class="lbl" id="q-${id}">${f.box ? "Boxes" : "Packs"}</span>
               <div class="stepper" role="group" aria-labelledby="q-${id}">
-                <button type="button" data-act="dec" aria-label="One fewer ${esc(f.fullName)} pack">${ICON.minus}</button>
+                <button type="button" data-act="dec" aria-label="One fewer ${esc(f.fullName)} ${unit}">${ICON.minus}</button>
                 <output aria-live="polite" data-qty>1</output>
-                <button type="button" data-act="inc" aria-label="One more ${esc(f.fullName)} pack">${ICON.plus}</button>
+                <button type="button" data-act="inc" aria-label="One more ${esc(f.fullName)} ${unit}">${ICON.plus}</button>
               </div>
             </div>
             <div class="frow__price"><span data-price>0</span><small>${esc(cur)}</small></div>
           </div>
-          <div class="grow" data-custom>
-            <div class="grow__clip">
-              <div class="custom-in">
-                <span class="lbl">Custom size per pack</span>
-                <input class="range" type="range" min="${CMIN}" max="${CMAX}" step="${CSTEP}" data-act="range" aria-label="Custom pack size in grams for ${esc(f.fullName)}">
-                <label class="num"><input type="number" min="${CMIN}" max="${CMAX}" step="${CSTEP}" inputmode="numeric" data-act="gnum" aria-label="Grams per pack"><span>g</span></label>
-              </div>
-            </div>
-          </div>
+          ${customField}
         </div>
       </div>
     </li>`;
@@ -325,7 +346,7 @@ export function initBuilder(cfg, mount) {
 
   // ---------- Rendering: rows ----------
   function syncRows() {
-    for (const f of cfg.flavours) {
+    for (const f of products) {
       const li = el.rows.get(f.id);
       const line = lineOf(f.id);
       const open = Boolean(line);
@@ -348,8 +369,9 @@ export function initBuilder(cfg, mount) {
       }
       $('[data-act="dec"]', li).disabled = line.qty <= 1;
       $('[data-act="inc"]', li).disabled = line.qty >= cfg.limits.maxPacksPerLine;
-      $("[data-price]", li).textContent = num(price(line.grams) * line.qty);
+      $("[data-price]", li).textContent = num(price(line.flavour, line.grams) * line.qty);
       const custom = $("[data-custom]", li);
+      if (!custom) continue;
       custom.classList.toggle("is-open", line.custom);
       custom.inert = !line.custom;
       const range = $('[data-act="range"]', li);
@@ -514,9 +536,9 @@ export function initBuilder(cfg, mount) {
     const line = lineOf(id);
     if (line) {
       line.qty = clampQty(line.qty + 1);
-      if (announce) toast(`Another ${f.fullName} added. Now ${line.qty} × ${line.grams} g.`);
+      if (announce) toast(`Another ${f.fullName} added. Now ${qtyText(line)}.`);
     } else {
-      state.lines.push({ flavour: id, grams: cfg.popularSize, qty: 1, custom: false });
+      state.lines.push({ flavour: id, grams: f.box ? f.grams : cfg.popularSize, qty: 1, custom: false });
       if (announce) toast(`${f.fullName} added to your box.`);
     }
     commit();
@@ -524,7 +546,7 @@ export function initBuilder(cfg, mount) {
   function setPreset(id) {
     const preset = presets.find((p) => p.id === id);
     if (!preset) return;
-    state.lines = preset.lines.map((l) => ({ ...l, custom: !cfg.sizes.includes(l.grams) }));
+    state.lines = preset.lines.map((l) => ({ ...l, custom: false }));
     toast(`${preset.title} loaded. Tweak anything you like.`);
     commit();
   }
@@ -710,7 +732,7 @@ export function initBuilder(cfg, mount) {
     const rows = state.lines
       .map((l) => {
         const f = byId.get(l.flavour);
-        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
+        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${qtyText(l)}</small></div><output>${num(price(l.flavour, l.grams) * l.qty)} ${esc(cur)}</output></div>`;
       })
       .join("");
     el.review.innerHTML = `
@@ -827,7 +849,7 @@ export function initBuilder(cfg, mount) {
     const rows = s.lines
       .map((l) => {
         const f = byId.get(l.flavour);
-        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
+        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${qtyText(l)}</small></div><output>${num(price(l.flavour, l.grams) * l.qty)} ${esc(cur)}</output></div>`;
       })
       .join("");
     el.done.innerHTML = `

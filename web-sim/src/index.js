@@ -3,9 +3,10 @@ const path = require("path");
 const { Pool } = require("pg");
 const { createApp } = require("./app");
 const { createMailer } = require("./email");
+const { createSheetSync } = require("./sheets");
 const config = require("../config.json");
 
-const { DATABASE_URL, ADMIN_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, RESEND_API_KEY, BREVO_API_KEY, EMAIL_FROM } = process.env;
+const { DATABASE_URL, ADMIN_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, RESEND_API_KEY, BREVO_API_KEY, EMAIL_FROM, SHEETS_WEBHOOK_URL, SHEETS_TOKEN } = process.env;
 const ORDER_EMAIL_TO = process.env.ORDER_EMAIL_TO || "kenny@igtfreight.com";
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -30,6 +31,10 @@ async function main() {
   if (mailer) console.log(`Order emails go to ${ORDER_EMAIL_TO} via ${mailer.provider}.`);
   else console.warn("No email provider configured (set RESEND_API_KEY or BREVO_API_KEY): preorder emails are off.");
 
+  const sheet = createSheetSync({ url: SHEETS_WEBHOOK_URL, token: SHEETS_TOKEN, config });
+  if (sheet) console.log("Orders are copied to Google Sheets.");
+  else console.warn("SHEETS_WEBHOOK_URL is not set: orders are not copied to Google Sheets.");
+
   const app = createApp({
     pool,
     config,
@@ -37,6 +42,7 @@ async function main() {
     telegram: { token: TELEGRAM_BOT_TOKEN, chatId: TELEGRAM_CHAT_ID },
     mailer,
     emailTo: ORDER_EMAIL_TO,
+    sheet,
   });
   app.listen(PORT, "0.0.0.0", () => console.log(`Big Ed's site listening on ${PORT}`));
 }

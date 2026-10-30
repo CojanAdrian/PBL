@@ -6,9 +6,10 @@ const { newDb } = require("pg-mem");
 const { createApp } = require("../src/app");
 const { validateOrder } = require("../src/orders");
 const { createMailer, buildOrderEmail } = require("../src/email");
+const { createSheetSync } = require("../src/sheets");
 const config = require("../config.json");
 
-let server, base, sent, emails;
+let server, base, sent, emails, sheetPushes;
 
 const goodOrder = (extra = {}) => ({
   name: "Ana Popescu",
@@ -25,6 +26,7 @@ before(async () => {
   const { Pool } = db.adapters.createPg();
   sent = [];
   emails = [];
+  sheetPushes = [];
   const app = createApp({
     pool: new Pool(),
     config,
@@ -32,6 +34,7 @@ before(async () => {
     telegram: { token: "t0ken", chatId: "42" },
     mailer: { send: async (m) => emails.push(m) },
     emailTo: "kenny@igtfreight.com",
+    sheet: { push: async (orders) => sheetPushes.push(orders) },
     fetchImpl: async (url, opts) => {
       sent.push({ url, body: JSON.parse(opts.body) });
       return { ok: true, status: 200 };
@@ -52,9 +55,9 @@ test("validateOrder prices on the server and merges duplicate lines", () => {
   const result = validateOrder(
     goodOrder({
       items: [
-        { flavour: "chicken-honey-sriracha", grams: 50, qty: 1 },
-        { flavour: "chicken-honey-sriracha", grams: 50, qty: 2 },
-        { flavour: "beef-garlic-teriyaki", grams: 150, qty: 1 },
+        { flavour: "chicken-honey-sriracha", grams: 100, qty: 1 },
+        { flavour: "chicken-honey-sriracha", grams: 100, qty: 2 },
+        { flavour: "beef-garlic-teriyaki", grams: 100, qty: 1 },
       ],
     }),
     config
@@ -62,21 +65,21 @@ test("validateOrder prices on the server and merges duplicate lines", () => {
   assert.equal(result.ok, true);
   assert.equal(result.order.items.length, 2);
   assert.equal(result.order.totalPacks, 4);
-  assert.equal(result.order.totalGrams, 50 * 3 + 150);
-  // 50 g costs 50 and 150 g costs 110 (table in config.json)
-  assert.equal(result.order.totalPrice, 50 * 3 + 110);
+  assert.equal(result.order.totalGrams, 400);
+  // chicken 70 a pack, beef 130 a pack (config.json)
+  assert.equal(result.order.totalPrice, 70 * 3 + 130);
   assert.equal(result.order.phone, "+37369123456");
 });
 
-test("prices: 50 g = 50, 100 g = 80, 150 g = 110, custom sizes follow base + per gram", () => {
-  const price = (grams) => validateOrder(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams, qty: 1 }] }), config).order.totalPrice;
-  assert.equal(price(50), 50);
-  assert.equal(price(100), 80);
-  assert.equal(price(150), 110);
-  assert.equal(price(250), 170);
-  assert.equal(price(500), 320);
-  assert.equal(price(1000), 620);
-  assert.equal(price(30), 38);
+test("prices: beef 130 and chicken 70 per 100 g pack, the taster box 285", () => {
+  const price = (flavour, grams) => validateOrder(goodOrder({ items: [{ flavour, grams, qty: 1 }] }), config).order.totalPrice;
+  assert.equal(price("beef-texas-bbq", 100), 130);
+  assert.equal(price("beef-honey-sriracha", 100), 130);
+  assert.equal(price("chicken-texas-bbq", 100), 70);
+  assert.equal(price("chicken-garlic-teriyaki", 100), 70);
+  assert.equal(price("taster-box", 180), 285);
+  // a box always weighs what config.json says
+  assert.equal(validateOrder(goodOrder({ items: [{ flavour: "taster-box", grams: 100, qty: 1 }] }), config).ok, false);
 });
 
 test("phone is optional, but a phone or an email is needed", () => {
@@ -89,16 +92,24 @@ test("phone is optional, but a phone or an email is needed", () => {
   assert.ok(ok({ phone: "abc", email: "ana@example.com" }).errors.phone);
 });
 
-test("validateOrder accepts custom sizes only inside the allowed range and step", () => {
-  const ok = (grams) => validateOrder(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams, qty: 1 }] }), config).ok;
-  assert.equal(ok(250), true);
-  assert.equal(ok(30), true);
-  assert.equal(ok(1000), true);
-  assert.equal(ok(25), false);
-  assert.equal(ok(255), false);
-  assert.equal(ok(1010), false);
-  assert.equal(ok(-100), false);
-  assert.equal(ok(100.5), false);
+test("custom sizes are off for now; switched on, they follow the 100 g price", () => {
+  const ok = (grams, cfg = config) => validateOrder(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams, qty: 1 }] }), cfg).ok;
+  assert.equal(ok(100), true);
+  assert.equal(ok(50), false);
+  assert.equal(ok(250), false);
+
+  const on = { ...config, custom: { ...config.custom, enabled: true } };
+  assert.equal(ok(250, on), true);
+  assert.equal(ok(30, on), true);
+  assert.equal(ok(1000, on), true);
+  assert.equal(ok(25, on), false);
+  assert.equal(ok(255, on), false);
+  assert.equal(ok(1010, on), false);
+  assert.equal(ok(-100, on), false);
+  assert.equal(ok(100.5, on), false);
+  const price = (flavour, grams) => validateOrder(goodOrder({ items: [{ flavour, grams, qty: 1 }] }), on).order.totalPrice;
+  assert.equal(price("chicken-texas-bbq", 250), 175);
+  assert.equal(price("beef-texas-bbq", 250), 325);
 });
 
 test("validateOrder rejects bad items, contact details and dates", () => {
@@ -123,7 +134,7 @@ test("a valid preorder is saved, returns a code and pings Telegram", async () =>
   assert.equal(res.status, 201);
   const data = await res.json();
   assert.match(data.code, /^BED-[2-9A-HJ-NP-Z]{5}$/);
-  assert.equal(data.totalPrice, 160); // 2 x 100 g at 80
+  assert.equal(data.totalPrice, 260); // 2 x 100 g beef at 130
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(sent.length, 1);
   assert.match(sent[0].url, /bott0ken\/sendMessage|bot.*\/sendMessage/);
@@ -186,7 +197,7 @@ test("an order triggers an email to Kenny with everything in it", async () => {
   const mail = emails[0];
   assert.equal(mail.to, "kenny@igtfreight.com");
   assert.ok(mail.subject.includes(code));
-  assert.ok(mail.subject.includes("160 MDL"));
+  assert.ok(mail.subject.includes("260 lei"));
   assert.match(mail.text, /2 x 100 g Texas BBQ Beef/);
   assert.match(mail.text, /Email: ana@example.com/);
   assert.doesNotMatch(mail.text, /Phone:/);
@@ -321,4 +332,61 @@ test("without a database preorders say so instead of pretending", async () => {
   } finally {
     s.close();
   }
+});
+
+test("every new order and every status change is copied to the Google Sheet", async () => {
+  sheetPushes.length = 0;
+  const res = await post(goodOrder({ items: [{ flavour: "taster-box", grams: 180, qty: 1 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2 }] }));
+  assert.equal(res.status, 201);
+  const { code } = await res.json();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sheetPushes.length, 1);
+  const [created] = sheetPushes[0];
+  assert.equal(created.code, code);
+  assert.equal(created.status, "new");
+  assert.equal(created.totalPrice, 285 + 140);
+
+  const headers = { "x-admin-key": "secret-admin-key", "Content-Type": "application/json" };
+  await fetch(`${base}/api/admin/preorders/${code}`, { method: "PATCH", headers, body: JSON.stringify({ status: "fulfilled" }) });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sheetPushes.length, 2);
+  assert.equal(sheetPushes[1][0].code, code);
+  assert.equal(sheetPushes[1][0].status, "fulfilled");
+
+  const all = await fetch(`${base}/api/admin/sheet-sync`, { method: "POST", headers, body: "{}" });
+  assert.equal(all.status, 200);
+  const { count } = await all.json();
+  assert.equal(sheetPushes.at(-1).length, count);
+  assert.ok(count >= 2);
+});
+
+test("sheet rows are ready to write, and a bad token or deployment gives a clear error", async () => {
+  let request;
+  const ok = createSheetSync({
+    url: "https://script.test/exec",
+    token: "tok",
+    config,
+    fetchImpl: async (url, opts) => {
+      request = { url, body: JSON.parse(opts.body) };
+      return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true, count: 1 }) };
+    },
+  });
+  const order = {
+    code: "BED-TEST1", createdAt: "2026-10-30T10:00:00.000Z", status: "confirmed", name: "Ana", phone: "+37369123456", email: "",
+    delivery: "pickup", address: "", date: "", note: "", currency: "lei", totalGrams: 380, totalPrice: 425,
+    items: [{ flavour: "taster-box", grams: 180, qty: 1, price: 285 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2, price: 70 }],
+  };
+  await ok.push([order]);
+  assert.equal(request.body.token, "tok");
+  const [row] = request.body.orders;
+  assert.equal(row.status, "Confirmed");
+  assert.equal(row.items, "1 x Taster box\n2 x 100 g Texas BBQ Chicken");
+  assert.equal(row.packs, 3);
+  assert.equal(row.total, 425);
+
+  const wrongToken = createSheetSync({ url: "https://script.test/exec", config, fetchImpl: async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ ok: false, error: "Wrong token." }) }) });
+  await assert.rejects(wrongToken.push([order]), /Wrong token/);
+  const loginPage = createSheetSync({ url: "https://script.test/exec", config, fetchImpl: async () => ({ ok: true, status: 200, text: async () => "<html>Sign in</html>" }) });
+  await assert.rejects(loginPage.push([order]), /Anyone/);
+  assert.equal(createSheetSync({ config }), null);
 });

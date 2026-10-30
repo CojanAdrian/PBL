@@ -33,7 +33,7 @@ function sameSecret(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
-function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImpl = fetch, randomInt = crypto.randomInt }) {
+function createApp({ pool, config, adminKey, telegram, mailer, emailTo, sheet, fetchImpl = fetch, randomInt = crypto.randomInt }) {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
@@ -103,6 +103,7 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
       orderLimiter.hit(req.ip);
       notifyTelegram(code, order).catch((err) => console.error("Telegram notify failed:", err.message));
       notifyEmail(code, order, `${req.protocol}://${req.get("host")}/admin`).catch((err) => console.error("Email notify failed:", err.message));
+      syncSheet([{ ...order, code, status: "new", createdAt: new Date().toISOString() }]).catch((err) => console.error("Sheet sync failed:", err.message));
       res.status(201).json({ ok: true, code, totalPrice: order.totalPrice, totalGrams: order.totalGrams, currency: order.currency });
     } catch (err) {
       next(err);
@@ -134,6 +135,23 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
   async function notifyEmail(code, order, adminUrl) {
     if (!mailer || !emailTo) return;
     await sendMail(buildOrderEmail({ code, order, config, adminUrl }));
+  }
+
+  // Google Sheet: every new order and every status change is written straight away.
+  const sheetState = { lastError: null, lastOkAt: null };
+  const sheetInfo = () => ({ enabled: Boolean(sheet), lastError: sheetState.lastError, lastOkAt: sheetState.lastOkAt });
+
+  async function syncSheet(orders) {
+    if (!sheet || orders.length === 0) return null;
+    try {
+      const result = await sheet.push(orders);
+      sheetState.lastError = null;
+      sheetState.lastOkAt = new Date().toISOString();
+      return result;
+    } catch (err) {
+      sheetState.lastError = err.message;
+      throw err;
+    }
   }
 
   async function notifyTelegram(code, order) {
@@ -192,10 +210,11 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
       res.set("Cache-Control", "no-store");
       res.json({
         orders: rows.map(rowToOrder),
-        flavours: [...flavourNames(config)].map(([id, name]) => ({ id, name })),
+        flavours: [...flavourNames(config)].map(([id, name]) => ({ id, name, box: (config.boxes || []).some((b) => b.id === id) })),
         sizes: config.sizes,
         currency: config.currency,
         email: emailInfo(),
+        sheet: sheetInfo(),
       });
     } catch (err) {
       next(err);
@@ -219,12 +238,31 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
     }
   });
 
+  // "Sync all orders" button: rewrites every order into the sheet (fills it the first
+  // time, and repairs it if a change ever failed to arrive).
+  app.post("/api/admin/sheet-sync", requireAdmin, async (_req, res, next) => {
+    try {
+      if (!sheet) return res.status(400).json({ error: "Google Sheets is OFF. Set SHEETS_WEBHOOK_URL and SHEETS_TOKEN on the server." });
+      if (!pool) return res.status(503).json({ error: "No database." });
+      const { rows } = await pool.query("SELECT * FROM preorders ORDER BY created_at ASC");
+      try {
+        await syncSheet(rows.map(rowToOrder));
+      } catch (err) {
+        return res.status(502).json({ error: err.message });
+      }
+      res.json({ ok: true, count: rows.length });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.patch("/api/admin/preorders/:code", requireAdmin, express.json({ limit: "2kb" }), async (req, res, next) => {
     try {
       if (!STATUSES.includes(req.body?.status)) return res.status(400).json({ error: "Invalid status." });
       if (!pool) return res.status(503).json({ error: "No database." });
-      const result = await pool.query("UPDATE preorders SET status = $1 WHERE code = $2", [req.body.status, req.params.code]);
-      if (result.rowCount === 0) return res.status(404).json({ error: "Order not found." });
+      const result = await pool.query("UPDATE preorders SET status = $1 WHERE code = $2 RETURNING *", [req.body.status, req.params.code]);
+      if (result.rows.length === 0) return res.status(404).json({ error: "Order not found." });
+      syncSheet(result.rows.map(rowToOrder)).catch((err) => console.error("Sheet sync failed:", err.message));
       res.json({ ok: true });
     } catch (err) {
       next(err);
