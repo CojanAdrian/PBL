@@ -1,10 +1,5 @@
-// Ed's preorder list and stats. The key lives only in this tab's sessionStorage.
+// Ed's preorder list and stats (read-only: order status is kept in the Google Sheet). The key lives only in this tab's sessionStorage.
 import { $, $$, esc, toast } from "./ui.js";
-
-const STATUSES = ["new", "confirmed", "fulfilled", "cancelled"];
-const LABEL = { new: "New", confirmed: "Confirmed", fulfilled: "Done", cancelled: "Cancelled" };
-const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-const CHECK = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 let key = "";
 try {
@@ -18,7 +13,6 @@ let boxes = new Set();
 let sizes = [100];
 let currency = "MDL";
 let tab = "orders";
-let filter = "new";
 let range = "all";
 let email = { enabled: false };
 let sheet = { enabled: false };
@@ -85,13 +79,13 @@ function renderSheet() {
   const el = $("#sheet");
   if (!sheet.enabled) {
     el.className = "mail mail--off";
-    el.innerHTML = `<div><strong>Google Sheets is off.</strong><p>Orders are not copied to a sheet. Set <code>SHEETS_WEBHOOK_URL</code> and <code>SHEETS_TOKEN</code> on Railway (see the README).</p></div>`;
+    el.innerHTML = `<div><strong>Google Sheets is off.</strong><p>Orders are not added to a sheet. Set <code>SHEETS_WEBHOOK_URL</code> and <code>SHEETS_TOKEN</code> on Railway (see the README).</p></div>`;
     return;
   }
   const failed = Boolean(sheet.lastError);
   el.className = `mail ${failed ? "mail--bad" : "mail--on"}`;
   el.innerHTML = `<div><strong>${failed ? "The last update to the sheet failed" : "Google Sheets is on"}</strong>
-      <p>New orders and status changes are written to the sheet straight away.${failed ? ` <span class="mail__err">${esc(sheet.lastError)}</span>` : ""}</p></div>
+      <p>Every new order is added to the sheet straight away. Set each order's status there, in the Status column.${failed ? ` <span class="mail__err">${esc(sheet.lastError)}</span>` : ""}</p></div>
     <button class="btn btn--ghost btn--sm" type="button" id="sheet-sync"><span>Sync all orders</span></button>`;
 }
 
@@ -101,43 +95,20 @@ const itemLabel = (i) => `${i.qty} × ${boxes.has(i.flavour) ? "" : `${i.grams} 
 function renderOrders() {
   renderMail();
   renderSheet();
-  const counts = Object.fromEntries(STATUSES.map((s) => [s, orders.filter((o) => o.status === s).length]));
-  chips($("#filters"), [["all", "All", orders.length], ...STATUSES.map((s) => [s, LABEL[s], counts[s]])], filter, "f");
-
-  // What Ed needs to make: grams per flavour across orders he has not finished or cancelled.
-  const todo = orders.filter((o) => o.status === "new" || o.status === "confirmed");
-  const grams = new Map();
-  for (const o of todo) for (const i of o.items) grams.set(i.flavour, (grams.get(i.flavour) || 0) + i.grams * i.qty);
-  $("#prod").hidden = grams.size === 0;
-  $("#prod").innerHTML = grams.size ? `<h2>To make (new + confirmed)</h2>` + [...grams].map(([id, g]) => `<span>${esc(names.get(id) || id)}: ${weight(g)}</span>`).join("") : "";
-
-  const shown = filter === "all" ? orders : orders.filter((o) => o.status === filter);
-  $("#empty").hidden = shown.length > 0;
-  $("#list").innerHTML = shown.map(card).join("");
-}
-
-function dropdown(o) {
-  return `<div class="dd" data-code="${esc(o.code)}">
-    <button class="dd__btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Status for ${esc(o.code)}: ${LABEL[o.status]}">
-      <i class="dot dot--${o.status}"></i><span>${LABEL[o.status]}</span>${CHEVRON}
-    </button>
-    <ul class="dd__menu" role="listbox" aria-label="Set status for ${esc(o.code)}" hidden>
-      ${STATUSES.map((s) => `<li role="option" tabindex="-1" data-v="${s}" aria-selected="${s === o.status}"><i class="dot dot--${s}"></i><span>${LABEL[s]}</span>${s === o.status ? CHECK : ""}</li>`).join("")}
-    </ul>
-  </div>`;
+  $("#empty").hidden = orders.length > 0;
+  $("#list").innerHTML = orders.map(card).join("");
 }
 
 function card(o) {
   const when = new Date(o.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   const who = [o.name && `<strong>${esc(o.name)}</strong>`, o.phone && `<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>`, o.email && `<a href="mailto:${esc(o.email)}">${esc(o.email)}</a>`].filter(Boolean).join(" · ");
-  return `<li class="order" data-status="${o.status}">
+  return `<li class="order">
     <div class="order__top"><span class="order__code">${esc(o.code)}</span><span class="order__when">${esc(when)}</span></div>
     <p class="order__who">${who}</p>
     <ul class="order__items">${o.items.map((i) => `<li><span>${esc(itemLabel(i))}</span><span>${money(i.price * i.qty)} ${esc(o.currency)}</span></li>`).join("")}</ul>
     <p class="order__meta">${o.delivery === "delivery" ? `Delivery: ${esc(o.address)}` : "Pickup"}${o.date ? ` · wanted ${esc(o.date)}` : ""}${o.note ? `<br>Note: ${esc(o.note)}` : ""}</p>
     <div class="order__foot">
       <span class="order__total">${money(o.totalPrice)} ${esc(o.currency)} <small class="order__when">${weight(o.totalGrams)}</small></span>
-      ${dropdown(o)}
     </div>
   </li>`;
 }
@@ -157,35 +128,20 @@ function renderStats() {
     return;
   }
 
-  const by = Object.fromEntries(STATUSES.map((s) => [s, { orders: 0, packs: 0, grams: 0, value: 0 }]));
-  for (const o of list) {
-    const b = by[o.status];
-    b.orders++;
-    b.packs += packsOf(o);
-    b.grams += o.totalGrams;
-    b.value += o.totalPrice;
-  }
-  const live = list.filter((o) => o.status !== "cancelled");
-  const open = list.filter((o) => o.status === "new" || o.status === "confirmed");
+  const live = list;
   const liveValue = live.reduce((s, o) => s + o.totalPrice, 0);
-  const openValue = by.new.value + by.confirmed.value;
   const avg = live.length ? Math.round(liveValue / live.length) : 0;
   const cur = esc(currency);
 
   const kpi = (label, value, sub, mod = "") => `<div class="kpi ${mod}"><p class="kpi__lbl">${label}</p><p class="kpi__val">${value}</p><p class="kpi__sub">${sub}</p></div>`;
   const kpis = [
-    kpi("Total value", `${money(liveValue)} <small>${cur}</small>`, `${live.length} ${live.length === 1 ? "order" : "orders"}, cancelled not counted`, "kpi--main"),
-    kpi("Still to do", `${money(openValue)} <small>${cur}</small>`, `${by.new.orders} new + ${by.confirmed.orders} confirmed`, "kpi--open"),
-    kpi("Done", `${money(by.fulfilled.value)} <small>${cur}</small>`, `${by.fulfilled.orders} ${by.fulfilled.orders === 1 ? "order" : "orders"} delivered`, "kpi--done"),
-    kpi("Cancelled", `${money(by.cancelled.value)} <small>${cur}</small>`, `${by.cancelled.orders} ${by.cancelled.orders === 1 ? "order" : "orders"}`, "kpi--cancel"),
-    kpi("Average order", `${money(avg)} <small>${cur}</small>`, "per order, cancelled not counted"),
-    kpi("To make now", weight(open.reduce((s, o) => s + o.totalGrams, 0)), `${open.reduce((s, o) => s + packsOf(o), 0)} packs in open orders`),
+    kpi("Total value", `${money(liveValue)} <small>${cur}</small>`, `${live.length} ${live.length === 1 ? "order" : "orders"}`, "kpi--main"),
+    kpi("Average order", `${money(avg)} <small>${cur}</small>`, "per order"),
+    kpi("Packs", money(live.reduce((s, o) => s + packsOf(o), 0)), "boxes count as one"),
+    kpi("Weight", weight(live.reduce((s, o) => s + o.totalGrams, 0)), "all orders together"),
   ].join("");
 
-  const rows = STATUSES.map((s) => `<tr><th scope="row"><i class="dot dot--${s}"></i>${LABEL[s]}</th><td>${by[s].orders}</td><td>${by[s].packs}</td><td class="hide-sm">${weight(by[s].grams)}</td><td>${money(by[s].value)} ${cur}</td></tr>`).join("");
-  const total = list.reduce((a, o) => ({ orders: a.orders + 1, packs: a.packs + packsOf(o), grams: a.grams + o.totalGrams, value: a.value + o.totalPrice }), { orders: 0, packs: 0, grams: 0, value: 0 });
-
-  // Flavours (cancelled orders left out)
+  // Flavours
   const fl = new Map();
   for (const o of live) for (const i of o.items) {
     const f = fl.get(i.flavour) || { packs: 0, grams: 0, value: 0 };
@@ -239,12 +195,7 @@ function renderStats() {
 
   el.innerHTML = `
     <div class="kpis">${kpis}</div>
-    <section class="panel"><h2>By status</h2>
-      <div class="tablewrap"><table class="tbl"><thead><tr><th scope="col">Status</th><th scope="col">Orders</th><th scope="col">Packs</th><th scope="col" class="hide-sm">Weight</th><th scope="col">Value</th></tr></thead>
-      <tbody>${rows}</tbody>
-      <tfoot><tr><th scope="row">All orders</th><td>${total.orders}</td><td>${total.packs}</td><td class="hide-sm">${weight(total.grams)}</td><td>${money(total.value)} ${cur}</td></tr></tfoot></table></div>
-    </section>
-    <section class="panel"><h2>Flavours <small>by value, cancelled not counted</small></h2><ul class="hbars">${flavourBars}</ul></section>
+    <section class="panel"><h2>Flavours <small>by value</small></h2><ul class="hbars">${flavourBars}</ul></section>
     <div class="two">
       <section class="panel"><h2>Pack sizes</h2>
         <div class="tablewrap"><table class="tbl"><thead><tr><th scope="col">Size</th><th scope="col">Packs</th><th scope="col">Value</th></tr></thead><tbody>${sizeRows}</tbody></table></div>
@@ -257,90 +208,6 @@ function renderStats() {
       <ul class="cols" role="img" aria-label="Order value per day for the last 14 days. ${esc(daySummary)}">${dayCols}</ul>
     </section>`;
 }
-
-// ---------------- Status dropdown ----------------
-function closeMenus(except) {
-  for (const dd of $$(".dd.is-open")) {
-    if (dd === except) continue;
-    dd.classList.remove("is-open", "is-up");
-    $(".dd__btn", dd).setAttribute("aria-expanded", "false");
-    $(".dd__menu", dd).hidden = true;
-  }
-}
-function openMenu(dd) {
-  closeMenus(dd);
-  const btn = $(".dd__btn", dd);
-  const menu = $(".dd__menu", dd);
-  dd.classList.toggle("is-up", window.innerHeight - btn.getBoundingClientRect().bottom < 230);
-  menu.hidden = false;
-  dd.classList.add("is-open");
-  btn.setAttribute("aria-expanded", "true");
-  ($('[aria-selected="true"]', menu) || $("[role=option]", menu)).focus();
-}
-async function setStatus(code, status) {
-  const order = orders.find((o) => o.code === code);
-  if (!order || order.status === status) return render();
-  const before = order.status;
-  order.status = status;
-  render();
-  try {
-    await api(`/api/admin/preorders/${encodeURIComponent(code)}`, { method: "PATCH", body: JSON.stringify({ status }) });
-    toast(`${code} is now ${LABEL[status].toLowerCase()}.`);
-  } catch {
-    order.status = before;
-    render();
-    toast("Couldn't save that. Try again.");
-  }
-}
-
-$("#list").addEventListener("click", (e) => {
-  const dd = e.target.closest(".dd");
-  if (!dd) return;
-  const option = e.target.closest("[role=option]");
-  if (option) {
-    closeMenus();
-    setStatus(dd.dataset.code, option.dataset.v);
-  } else if (e.target.closest(".dd__btn")) {
-    dd.classList.contains("is-open") ? closeMenus() : openMenu(dd);
-  }
-});
-$("#list").addEventListener("keydown", (e) => {
-  const dd = e.target.closest(".dd");
-  if (!dd) return;
-  const btn = $(".dd__btn", dd);
-  const open = dd.classList.contains("is-open");
-  if (e.target === btn && ["ArrowDown", "ArrowUp"].includes(e.key)) {
-    e.preventDefault();
-    openMenu(dd);
-    return;
-  }
-  if (!open) return;
-  const items = $$("[role=option]", dd);
-  const i = items.indexOf(document.activeElement);
-  if (e.key === "Escape") {
-    e.preventDefault();
-    closeMenus();
-    btn.focus();
-  } else if (e.key === "ArrowDown") {
-    e.preventDefault();
-    items[(i + 1) % items.length].focus();
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
-    items[(i - 1 + items.length) % items.length].focus();
-  } else if (e.key === "Home" || e.key === "End") {
-    e.preventDefault();
-    items[e.key === "Home" ? 0 : items.length - 1].focus();
-  } else if ((e.key === "Enter" || e.key === " ") && i >= 0) {
-    e.preventDefault();
-    closeMenus();
-    setStatus(dd.dataset.code, items[i].dataset.v);
-  } else if (e.key === "Tab") {
-    closeMenus();
-  }
-});
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".dd")) closeMenus();
-});
 
 // ---------------- Wiring ----------------
 $("#login").addEventListener("submit", async (e) => {
@@ -358,13 +225,6 @@ $("#login").addEventListener("submit", async (e) => {
     $("#login-err").textContent = err.status === 404 ? "The admin page isn't switched on (ADMIN_KEY is not set)." : err.status === 429 ? "Too many wrong keys. Wait a few minutes and try again." : "That key doesn't work.";
   }
 });
-$("#filters").addEventListener("click", (e) => {
-  const chip = e.target.closest("[data-f]");
-  if (chip) {
-    filter = chip.dataset.f;
-    render();
-  }
-});
 $("#ranges").addEventListener("click", (e) => {
   const chip = e.target.closest("[data-r]");
   if (chip) {
@@ -375,7 +235,6 @@ $("#ranges").addEventListener("click", (e) => {
 for (const t of $$(".tab")) {
   t.addEventListener("click", () => {
     tab = t.id === "tab-stats" ? "stats" : "orders";
-    closeMenus();
     render();
   });
 }
@@ -407,7 +266,7 @@ $("#sheet").addEventListener("click", async (e) => {
   btn.querySelector("span").textContent = "Syncing…";
   try {
     const r = await api("/api/admin/sheet-sync", { method: "POST", body: "{}" });
-    toast(`${r.count} ${r.count === 1 ? "order is" : "orders are"} in the sheet now.`);
+    toast(r.added === null ? `${r.count} orders sent to the sheet.` : `${r.added} missing ${r.added === 1 ? "order" : "orders"} added. All ${r.count} are in the sheet now.`);
     sheet = { ...sheet, lastError: null };
   } catch (err) {
     sheet = { ...sheet, lastError: err.message };
@@ -426,8 +285,8 @@ $("#lock").addEventListener("click", () => {
 });
 
 if (key) load().catch(() => {});
-// Pick up new orders without a manual refresh, as long as nothing is open.
+// Pick up new orders without a manual refresh.
 setInterval(() => {
-  if (!key || document.hidden || $("#app").hidden || $(".dd.is-open")) return;
+  if (!key || document.hidden || $("#app").hidden) return;
   load().catch(() => {});
 }, 45000);

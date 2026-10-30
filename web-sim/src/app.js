@@ -7,7 +7,6 @@ const compression = require("compression");
 const { validateOrder, makeCode, describeOrder, flavourNames } = require("./orders");
 const { buildOrderEmail } = require("./email");
 
-const STATUSES = ["new", "confirmed", "fulfilled", "cancelled"];
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 // Tiny in-memory rate limiter. `allowed` only looks; `hit` records one event.
@@ -137,7 +136,7 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, sheet, f
     await sendMail(buildOrderEmail({ code, order, config, adminUrl }));
   }
 
-  // Google Sheet: every new order and every status change is written straight away.
+  // Google Sheet: every new order is added straight away. Ed keeps the status there.
   const sheetState = { lastError: null, lastOkAt: null };
   const sheetInfo = () => ({ enabled: Boolean(sheet), lastError: sheetState.lastError, lastOkAt: sheetState.lastOkAt });
 
@@ -238,32 +237,20 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, sheet, f
     }
   });
 
-  // "Sync all orders" button: rewrites every order into the sheet (fills it the first
-  // time, and repairs it if a change ever failed to arrive).
+  // "Sync all orders" button: adds any order the sheet is missing (fills it the first
+  // time, and catches up if an order ever failed to arrive). Rows already there are left alone.
   app.post("/api/admin/sheet-sync", requireAdmin, async (_req, res, next) => {
     try {
       if (!sheet) return res.status(400).json({ error: "Google Sheets is OFF. Set SHEETS_WEBHOOK_URL and SHEETS_TOKEN on the server." });
       if (!pool) return res.status(503).json({ error: "No database." });
       const { rows } = await pool.query("SELECT * FROM preorders ORDER BY created_at ASC");
+      let result;
       try {
-        await syncSheet(rows.map(rowToOrder));
+        result = await syncSheet(rows.map(rowToOrder));
       } catch (err) {
         return res.status(502).json({ error: err.message });
       }
-      res.json({ ok: true, count: rows.length });
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  app.patch("/api/admin/preorders/:code", requireAdmin, express.json({ limit: "2kb" }), async (req, res, next) => {
-    try {
-      if (!STATUSES.includes(req.body?.status)) return res.status(400).json({ error: "Invalid status." });
-      if (!pool) return res.status(503).json({ error: "No database." });
-      const result = await pool.query("UPDATE preorders SET status = $1 WHERE code = $2 RETURNING *", [req.body.status, req.params.code]);
-      if (result.rows.length === 0) return res.status(404).json({ error: "Order not found." });
-      syncSheet(result.rows.map(rowToOrder)).catch((err) => console.error("Sheet sync failed:", err.message));
-      res.json({ ok: true });
+      res.json({ ok: true, count: rows.length, added: result?.added ?? null });
     } catch (err) {
       next(err);
     }

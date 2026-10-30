@@ -159,7 +159,7 @@ test("the honeypot field gets a fake success and nothing is stored", async () =>
   assert.equal(sent.length, before);
 });
 
-test("admin needs the key, lists orders and updates status", async () => {
+test("admin needs the key and lists orders (read-only)", async () => {
   assert.equal((await fetch(`${base}/api/admin/preorders`)).status, 401);
   assert.equal((await fetch(`${base}/api/admin/preorders`, { headers: { "x-admin-key": "wrong" } })).status, 401);
 
@@ -170,12 +170,9 @@ test("admin needs the key, lists orders and updates status", async () => {
   assert.equal(order.status, "new");
   assert.equal(order.items[0].flavour, "beef-texas-bbq");
 
+  // status is kept in the Google Sheet, so there is no way to change it here
   const patched = await fetch(`${base}/api/admin/preorders/${order.code}`, { method: "PATCH", headers, body: JSON.stringify({ status: "confirmed" }) });
-  assert.equal(patched.status, 200);
-  const bad = await fetch(`${base}/api/admin/preorders/${order.code}`, { method: "PATCH", headers, body: JSON.stringify({ status: "lol" }) });
-  assert.equal(bad.status, 400);
-  const missing = await fetch(`${base}/api/admin/preorders/BED-NOPE1`, { method: "PATCH", headers, body: JSON.stringify({ status: "new" }) });
-  assert.equal(missing.status, 404);
+  assert.equal(patched.status, 404);
 });
 
 test("public config is served without the readme note", async () => {
@@ -334,7 +331,7 @@ test("without a database preorders say so instead of pretending", async () => {
   }
 });
 
-test("every new order and every status change is copied to the Google Sheet", async () => {
+test("every new order is added to the Google Sheet straight away", async () => {
   sheetPushes.length = 0;
   const res = await post(goodOrder({ items: [{ flavour: "taster-box", grams: 180, qty: 1 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2 }] }));
   assert.equal(res.status, 201);
@@ -346,13 +343,8 @@ test("every new order and every status change is copied to the Google Sheet", as
   assert.equal(created.status, "new");
   assert.equal(created.totalPrice, 285 + 140);
 
+  // "Sync all orders" sends everything; the sheet adds only the missing ones
   const headers = { "x-admin-key": "secret-admin-key", "Content-Type": "application/json" };
-  await fetch(`${base}/api/admin/preorders/${code}`, { method: "PATCH", headers, body: JSON.stringify({ status: "fulfilled" }) });
-  await new Promise((r) => setTimeout(r, 30));
-  assert.equal(sheetPushes.length, 2);
-  assert.equal(sheetPushes[1][0].code, code);
-  assert.equal(sheetPushes[1][0].status, "fulfilled");
-
   const all = await fetch(`${base}/api/admin/sheet-sync`, { method: "POST", headers, body: "{}" });
   assert.equal(all.status, 200);
   const { count } = await all.json();

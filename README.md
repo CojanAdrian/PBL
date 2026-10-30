@@ -81,7 +81,7 @@ If an email fails, the preorder is still saved, the problem is shown in that box
 
 ## Google Sheets (every order, live)
 
-Every new preorder is added to a Google Sheet as it comes in, and when Ed changes an order's status on `/admin` the same row updates. One row per order, found by its order code.
+Every new preorder is added to a Google Sheet automatically, as it comes in: one row per order, with Status **New**. Ed keeps track of orders in the sheet: the Status column has a dropdown (New, Confirmed, Done, Cancelled) and colours itself.
 
 Setup, about 5 minutes:
 
@@ -90,12 +90,12 @@ Setup, about 5 minutes:
 3. Still in Apps Script: *Project Settings* (gear icon) → *Script properties* → *Add script property*. Name `TOKEN`, value: a long random password you make up. Save.
 4. *Deploy → New deployment*. Type: *Web app*. *Execute as*: **Me**. *Who has access*: **Anyone**. Deploy, allow the permissions Google asks for, and copy the *Web app URL* (it ends in `/exec`).
 5. In Railway, set `SHEETS_WEBHOOK_URL` to that URL and `SHEETS_TOKEN` to the same password as `TOKEN`.
-6. Open `/admin`. The Orders tab shows a "Google Sheets is on" box. Press **Sync all orders** once: every order so far is written to the sheet (an `Orders` tab is created with the headings). From then on it updates by itself.
+6. Open `/admin`. The Orders tab shows a "Google Sheets is on" box. Press **Sync all orders** once: every order so far is added to the sheet (an `Orders` tab is created with the headings). From then on new orders arrive by themselves.
 
 Notes:
 - "Anyone" only means the script's web address accepts requests. The sheet itself stays private, and the script refuses anything without the right `TOKEN`.
-- If an update ever fails (Google down, wrong token), the order is still saved, the reason shows in the box on `/admin`, and **Sync all orders** fixes the sheet.
-- Changes made by typing in the sheet do not flow back to the website. The website (`/admin`) is the source of truth.
+- If an update ever fails (Google down, wrong token), the order is still saved, the reason shows in the box on `/admin`, and **Sync all orders** adds whatever is missing. It only adds orders that are not in the sheet yet; it never changes rows already there, so Ed's statuses and edits are safe.
+- Changes made in the sheet stay in the sheet; they do not flow back to the website.
 - Need Excel? *File → Download → Microsoft Excel (.xlsx)* in the sheet.
 - If you change the script later, use *Deploy → Manage deployments → Edit → New version* so the URL stays the same.
 
@@ -103,8 +103,8 @@ Notes:
 
 Open `/admin` on the site and enter the `ADMIN_KEY`.
 
-- **Orders**: every preorder. Change its status (New, Confirmed, Done, Cancelled) with the dropdown. There is a "to make" total per flavour.
-- **Stats**: total value, still to do, done, cancelled, average order, a table by status, flavour and pack-size breakdowns, pickup vs delivery, and the last 14 days. Switch between all time, 30 days and 7 days.
+- **Orders**: every preorder, newest first. Read-only: statuses are kept in the Google Sheet.
+- **Stats**: total value, average order, packs, weight, flavour and pack-size breakdowns, pickup vs delivery, and the last 14 days. Cancellations are only marked in the sheet, so these count every order. Switch between all time, 30 days and 7 days.
 
 Only **wrong** keys count towards the lockout (10 wrong keys in 15 minutes). Using the page normally never locks you out.
 

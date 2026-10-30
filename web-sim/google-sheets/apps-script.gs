@@ -1,9 +1,10 @@
 /**
  * Big Ed's Jerky: preorders -> this Google Sheet, live.
  *
- * The website sends every new order, and every status change, to this script.
- * Each order is one row, found by its order code: a new code adds a row, a
- * known code updates that row in place.
+ * The website sends every new order to this script, which adds it as a row
+ * with Status "New". Ed sets the status here, with the dropdown in the Status
+ * column. An order code that is already in the sheet is skipped, so the
+ * website never overwrites anything Ed changed.
  *
  * Setup (once): see "Google Sheets" in the project README.
  *   1. Extensions -> Apps Script, paste this whole file, save.
@@ -32,8 +33,10 @@ var COLUMNS = [
   ["Total", "total"],
   ["Currency", "currency"],
   ["Note", "note"],
-  ["Last update", "updated"],
+  ["Added", "added"],
 ];
+
+var STATUSES = ["New", "Confirmed", "Done", "Cancelled"];
 
 var STATUS_COLOURS = { New: "#fff4cc", Confirmed: "#d9eaff", Done: "#dcf5e3", Cancelled: "#eeeeee" };
 
@@ -53,8 +56,9 @@ function doPost(e) {
   try {
     var sheet = getSheet();
     var orders = body.orders || [];
-    for (var i = 0; i < orders.length; i++) upsert(sheet, orders[i]);
-    return reply({ ok: true, count: orders.length });
+    var added = 0;
+    for (var i = 0; i < orders.length; i++) if (addIfMissing(sheet, orders[i])) added++;
+    return reply({ ok: true, count: orders.length, added: added });
   } finally {
     lock.releaseLock();
   }
@@ -74,6 +78,11 @@ function getSheet() {
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(col("items"), 260);
     sheet.setColumnWidth(col("note"), 220);
+    // Status cells take a colour from their value, also when Ed changes it.
+    var statusCol = sheet.getRange(2, col("status"), sheet.getMaxRows() - 1, 1);
+    sheet.setConditionalFormatRules(Object.keys(STATUS_COLOURS).map(function (label) {
+      return SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(label).setBackground(STATUS_COLOURS[label]).setRanges([statusCol]).build();
+    }));
   }
   return sheet;
 }
@@ -83,25 +92,33 @@ function col(key) {
   return -1;
 }
 
-function upsert(sheet, order) {
-  order.updated = new Date();
+// Adds the order as a new row, unless its code is already in the sheet.
+function addIfMissing(sheet, order) {
+  var last = sheet.getLastRow();
+  if (last > 1) {
+    var found = sheet.getRange(2, col("code"), last - 1, 1)
+      .createTextFinder(String(order.code)).matchEntireCell(true).findNext();
+    if (found) return false;
+  }
+  order.status = "New";
+  order.added = new Date();
   if (order.created) order.created = new Date(order.created);
   var values = COLUMNS.map(function (c) {
     var v = order[c[1]];
     return v === undefined || v === null ? "" : v;
   });
 
-  var found = sheet.getRange(1, col("code"), Math.max(1, sheet.getLastRow()), 1)
-    .createTextFinder(String(order.code)).matchEntireCell(true).findNext();
-  var row = found ? found.getRow() : sheet.getLastRow() + 1;
-
+  var row = last + 1;
   // Phone numbers stay as text so Sheets keeps the + and leading zeros.
   sheet.getRange(row, col("phone")).setNumberFormat("@");
   sheet.getRange(row, 1, 1, values.length).setValues([values]).setVerticalAlignment("top");
   sheet.getRange(row, col("created")).setNumberFormat("yyyy-mm-dd hh:mm");
-  sheet.getRange(row, col("updated")).setNumberFormat("yyyy-mm-dd hh:mm");
+  sheet.getRange(row, col("added")).setNumberFormat("yyyy-mm-dd hh:mm");
   sheet.getRange(row, col("items")).setWrap(true);
-  sheet.getRange(row, col("status")).setBackground(STATUS_COLOURS[order.status] || null).setFontWeight("bold");
+  sheet.getRange(row, col("status"))
+    .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).setAllowInvalid(false).build())
+    .setFontWeight("bold");
+  return true;
 }
 
 function reply(data) {
