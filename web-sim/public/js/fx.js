@@ -67,7 +67,6 @@ export function heroIntro() {
     .from(".hero__cta .btn", { y: 30, opacity: 0, duration: 0.9, stagger: 0.1 }, 0.6)
     .from(".hero__facts li", { y: 20, opacity: 0, duration: 0.8, stagger: 0.08 }, 0.8)
     .from(".hero__logo", { scale: 0.6, rotate: -14, opacity: 0, duration: 1.5, ease: "elastic.out(1, 0.6)", clearProps: "transform,opacity" }, 0.2)
-    .from(".hero__pouch", { x: 90, y: 40, rotate: 16, opacity: 0, duration: 1.3, clearProps: "transform,opacity" }, 0.6)
     .from(".hero__badge", { scale: 0, rotate: -90, opacity: 0, duration: 1.1, ease: "back.out(1.8)", clearProps: "transform,opacity" }, 0.95)
     .from(".nav__bar", { y: -30, opacity: 0, duration: 0.9 }, 0.5);
 }
@@ -241,6 +240,7 @@ export function initScrollFX() {
     const pin = $(".craft__pin");
     const track = $(".craft__track");
     const bar = $(".craft__progress");
+    if (!pin || !track) return; // the section is commented out in index.html
     const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
     gsap.to(track, {
       x: () => -distance(),

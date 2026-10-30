@@ -77,26 +77,25 @@ export function initBuilder(cfg, mount) {
   }
 
   // ---------- Skeleton ----------
+  // Flavours grouped by meat (beef, chicken), in config order.
+  const meats = cfg.meats || [];
+  const groups = meats.length
+    ? meats.map((m) => ({ title: `${m.name} jerky`, flavours: cfg.flavours.filter((f) => f.meat === m.id) })).filter((g) => g.flavours.length > 0)
+    : [{ title: "", flavours: cfg.flavours }];
   const presets = [
-    { id: "taster", title: "Taster set", lines: cfg.flavours.map((f) => ({ flavour: f.id, grams: cfg.sizes[0], qty: 1 })) },
-    { id: "lineup", title: "The full lineup", lines: cfg.flavours.map((f) => ({ flavour: f.id, grams: cfg.popularSize, qty: 1 })) },
     {
-      id: "heat",
-      title: "Heat seeker",
-      lines: [
-        { flavour: "spicy", grams: cfg.popularSize, qty: 2 },
-        { flavour: "black-pepper", grams: cfg.popularSize, qty: 1 },
-      ],
+      id: "taster",
+      title: "Taster set",
+      desc: `${meats.length > 1 ? `Every flavour in ${meats.map((m) => m.name.toLowerCase()).join(" and ")}` : "One of every flavour"}, ${cfg.sizes[0]} g each`,
+      lines: cfg.flavours.map((f) => ({ flavour: f.id, grams: cfg.sizes[0], qty: 1 })),
     },
-  ]
-    .map((p) => ({ ...p, lines: p.lines.filter((l) => byId.has(l.flavour)) }))
-    .filter((p) => p.lines.length > 0);
-  const describePreset = (p) =>
-    p.id === "heat"
-      ? p.lines.map((l) => `${l.qty} × ${byId.get(l.flavour).name}`).join(", ") + `, ${cfg.popularSize} g`
-      : p.id === "taster"
-        ? `One of every flavour, ${cfg.sizes[0]} g each`
-        : `Every flavour, ${cfg.popularSize} g each`;
+    ...meats.map((m) => ({
+      id: m.id,
+      title: `${m.name} lineup`,
+      desc: `Every ${m.name.toLowerCase()} flavour, ${cfg.popularSize} g each`,
+      lines: cfg.flavours.filter((f) => f.meat === m.id).map((f) => ({ flavour: f.id, grams: cfg.popularSize, qty: 1 })),
+    })),
+  ].filter((p) => p.lines.length > 0);
 
   mount.innerHTML = `
   <div class="builder__main">
@@ -118,10 +117,10 @@ export function initBuilder(cfg, mount) {
       </div>
       <p class="lbl">Quick starts</p>
       <div class="presets">
-        ${presets.map((p) => `<button class="preset" type="button" data-preset="${p.id}"><strong>${esc(p.title)}</strong><span>${esc(describePreset(p))}</span></button>`).join("")}
+        ${presets.map((p) => `<button class="preset" type="button" data-preset="${p.id}"><strong>${esc(p.title)}</strong><span>${esc(p.desc)}</span></button>`).join("")}
       </div>
       <p class="lbl">Or pick your flavours</p>
-      <ul class="frows">${cfg.flavours.map(rowHTML).join("")}</ul>
+      ${groups.map((g) => `${g.title ? `<h4 class="meathead">${esc(g.title)}</h4>` : ""}<ul class="frows">${g.flavours.map(rowHTML).join("")}</ul>`).join("")}
       <div class="actions" style="justify-content:flex-end">
         <button class="btn btn--primary btn--lg" type="button" data-next aria-disabled="true"><span>Continue to details</span>${ICON.arrow}</button>
       </div>
@@ -241,8 +240,8 @@ export function initBuilder(cfg, mount) {
           ${heatBars(f.heat, { small: true })}
         </div>
         <div class="frow__act">
-          <button class="btn-add" type="button" data-act="add" aria-label="Add ${esc(f.name)} to your box">${ICON.plus}<span>Add</span></button>
-          <button class="btn-icon" type="button" data-act="remove" aria-label="Remove ${esc(f.name)} from your box" hidden>${ICON.close}</button>
+          <button class="btn-add" type="button" data-act="add" aria-label="Add ${esc(f.fullName)} to your box">${ICON.plus}<span>Add</span></button>
+          <button class="btn-icon" type="button" data-act="remove" aria-label="Remove ${esc(f.fullName)} from your box" hidden>${ICON.close}</button>
         </div>
       </div>
       <div class="grow" data-ctl>
@@ -258,9 +257,9 @@ export function initBuilder(cfg, mount) {
             <div class="field">
               <span class="lbl" id="q-${id}">Packs</span>
               <div class="stepper" role="group" aria-labelledby="q-${id}">
-                <button type="button" data-act="dec" aria-label="One fewer ${esc(f.name)} pack">${ICON.minus}</button>
+                <button type="button" data-act="dec" aria-label="One fewer ${esc(f.fullName)} pack">${ICON.minus}</button>
                 <output aria-live="polite" data-qty>1</output>
-                <button type="button" data-act="inc" aria-label="One more ${esc(f.name)} pack">${ICON.plus}</button>
+                <button type="button" data-act="inc" aria-label="One more ${esc(f.fullName)} pack">${ICON.plus}</button>
               </div>
             </div>
             <div class="frow__price"><span data-price>0</span><small>${esc(cur)}</small></div>
@@ -269,7 +268,7 @@ export function initBuilder(cfg, mount) {
             <div class="grow__clip">
               <div class="custom-in">
                 <span class="lbl">Custom size per pack</span>
-                <input class="range" type="range" min="${CMIN}" max="${CMAX}" step="${CSTEP}" data-act="range" aria-label="Custom pack size in grams for ${esc(f.name)}">
+                <input class="range" type="range" min="${CMIN}" max="${CMAX}" step="${CSTEP}" data-act="range" aria-label="Custom pack size in grams for ${esc(f.fullName)}">
                 <label class="num"><input type="number" min="${CMIN}" max="${CMAX}" step="${CSTEP}" inputmode="numeric" data-act="gnum" aria-label="Grams per pack"><span>g</span></label>
               </div>
             </div>
@@ -398,7 +397,7 @@ export function initBuilder(cfg, mount) {
         node.dataset.g = String(w.grams);
         node.innerHTML = pouchSVG(w.flavour, { grams: w.grams });
       }
-      node.dataset.label = `${w.flavour.name} · ${w.grams} g`;
+      node.dataset.label = `${w.flavour.fullName} · ${w.grams} g`;
       node.style.setProperty("--s", trayScale(w.grams));
       node.style.setProperty("--rot", `${(((i * 37) % 7) - 3) * 1.4}deg`);
       node.style.setProperty("--z", String(i + 1));
@@ -440,7 +439,7 @@ export function initBuilder(cfg, mount) {
       .map((l) => {
         const f = byId.get(l.flavour);
         const pct = Math.round(((l.grams * l.qty) / t.grams) * 100);
-        return `<li><i style="background:${esc(f.accent)}"></i>${esc(f.name)} ${pct}%</li>`;
+        return `<li><i style="background:${esc(f.accent)}"></i>${esc(f.fullName)} ${pct}%</li>`;
       })
       .join("");
     renderTray();
@@ -515,10 +514,10 @@ export function initBuilder(cfg, mount) {
     const line = lineOf(id);
     if (line) {
       line.qty = clampQty(line.qty + 1);
-      if (announce) toast(`Another ${f.name} added. Now ${line.qty} × ${line.grams} g.`);
+      if (announce) toast(`Another ${f.fullName} added. Now ${line.qty} × ${line.grams} g.`);
     } else {
       state.lines.push({ flavour: id, grams: cfg.popularSize, qty: 1, custom: false });
-      if (announce) toast(`${f.name} added to your box.`);
+      if (announce) toast(`${f.fullName} added to your box.`);
     }
     commit();
   }
@@ -711,7 +710,7 @@ export function initBuilder(cfg, mount) {
     const rows = state.lines
       .map((l) => {
         const f = byId.get(l.flavour);
-        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.name)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
+        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
       })
       .join("");
     el.review.innerHTML = `
@@ -828,7 +827,7 @@ export function initBuilder(cfg, mount) {
     const rows = s.lines
       .map((l) => {
         const f = byId.get(l.flavour);
-        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.name)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
+        return `<div class="rrow">${pouchSVG(f, { mini: true })}<div><b>${esc(f.fullName)}</b><small>${l.qty} × ${l.grams} g</small></div><output>${num(price(l.grams) * l.qty)} ${esc(cur)}</output></div>`;
       })
       .join("");
     el.done.innerHTML = `

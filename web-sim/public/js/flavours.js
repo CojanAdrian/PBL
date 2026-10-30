@@ -29,7 +29,7 @@ export function initFlavours(cfg) {
     .map(
       (f) => `<button class="ftab" role="tab" type="button" id="ftab-${esc(f.id)}" aria-controls="fpanel" aria-selected="false" tabindex="-1" data-id="${esc(f.id)}" style="--tab:${esc(f.accent)}">
         <span class="ftab__dot" aria-hidden="true"></span>
-        <span class="ftab__name">${esc(f.name)}</span>
+        <span class="ftab__text">${f.meatName ? `<small class="ftab__meat">${esc(f.meatName)}</small>` : ""}<span class="ftab__name">${esc(f.name)}</span></span>
         <span class="ftab__heat">${heatBars(f.heat, { small: true })}</span>
       </button>`
     )
@@ -43,7 +43,7 @@ export function initFlavours(cfg) {
     <p class="fstage__hint" aria-hidden="true"><span>${chevron(-1)}</span>Swipe the pack to explore<span>${chevron(1)}</span></p>
     <button class="fstage__arrow" type="button" data-step="-1" aria-label="Previous flavour">${chevron(-1)}</button>
     <div class="fstage__dots">
-      ${cfg.flavours.map((f) => `<button class="fstage__dot" type="button" data-id="${esc(f.id)}" aria-label="Show ${esc(f.name)}" style="--dot:${esc(f.accent)}"><i></i></button>`).join("")}
+      ${cfg.flavours.map((f) => `<button class="fstage__dot" type="button" data-id="${esc(f.id)}" aria-label="Show ${esc(f.fullName)}" style="--dot:${esc(f.accent)}"><i></i></button>`).join("")}
     </div>
     <button class="fstage__arrow" type="button" data-step="1" aria-label="Next flavour">${chevron(1)}</button>`;
   pouchEl.after(nav);
@@ -55,12 +55,12 @@ export function initFlavours(cfg) {
   };
 
   function apply(flavour) {
-    pouchEl.innerHTML = pouchSVG(flavour, { grams: 100, label: `${flavour.name} jerky pouch` });
+    pouchEl.innerHTML = pouchSVG(flavour, { grams: 100, label: `${flavour.fullName} jerky pouch` });
     tagEl.textContent = flavour.tagline;
-    nameEl.textContent = flavour.name;
+    nameEl.textContent = flavour.fullName;
     notesEl.textContent = flavour.notes;
     heatEl.innerHTML = heatBars(flavour.heat, { label: true });
-    addBtn.querySelector("span").textContent = `Add ${flavour.name} to my box`;
+    addBtn.querySelector("span").textContent = `Add ${flavour.fullName} to my box`;
   }
 
   const clearInline = () => {

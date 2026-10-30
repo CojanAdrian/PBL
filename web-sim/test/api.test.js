@@ -15,7 +15,7 @@ const goodOrder = (extra = {}) => ({
   phone: "+373 69 123 456",
   email: "",
   delivery: "pickup",
-  items: [{ flavour: "original", grams: 100, qty: 2 }],
+  items: [{ flavour: "beef-texas-bbq", grams: 100, qty: 2 }],
   ...extra,
 });
 
@@ -52,9 +52,9 @@ test("validateOrder prices on the server and merges duplicate lines", () => {
   const result = validateOrder(
     goodOrder({
       items: [
-        { flavour: "spicy", grams: 50, qty: 1 },
-        { flavour: "spicy", grams: 50, qty: 2 },
-        { flavour: "garlic", grams: 150, qty: 1 },
+        { flavour: "chicken-honey-sriracha", grams: 50, qty: 1 },
+        { flavour: "chicken-honey-sriracha", grams: 50, qty: 2 },
+        { flavour: "beef-garlic-teriyaki", grams: 150, qty: 1 },
       ],
     }),
     config
@@ -69,7 +69,7 @@ test("validateOrder prices on the server and merges duplicate lines", () => {
 });
 
 test("prices: 50 g = 50, 100 g = 80, 150 g = 110, custom sizes follow base + per gram", () => {
-  const price = (grams) => validateOrder(goodOrder({ items: [{ flavour: "bbq", grams, qty: 1 }] }), config).order.totalPrice;
+  const price = (grams) => validateOrder(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams, qty: 1 }] }), config).order.totalPrice;
   assert.equal(price(50), 50);
   assert.equal(price(100), 80);
   assert.equal(price(150), 110);
@@ -90,7 +90,7 @@ test("phone is optional, but a phone or an email is needed", () => {
 });
 
 test("validateOrder accepts custom sizes only inside the allowed range and step", () => {
-  const ok = (grams) => validateOrder(goodOrder({ items: [{ flavour: "bbq", grams, qty: 1 }] }), config).ok;
+  const ok = (grams) => validateOrder(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams, qty: 1 }] }), config).ok;
   assert.equal(ok(250), true);
   assert.equal(ok(30), true);
   assert.equal(ok(1000), true);
@@ -105,8 +105,8 @@ test("validateOrder rejects bad items, contact details and dates", () => {
   const errors = (body) => validateOrder(body, config).errors || {};
   assert.ok(errors(goodOrder({ items: [] })).items);
   assert.ok(errors(goodOrder({ items: [{ flavour: "nope", grams: 100, qty: 1 }] })).items);
-  assert.ok(errors(goodOrder({ items: [{ flavour: "bbq", grams: 100, qty: 0 }] })).items);
-  assert.ok(errors(goodOrder({ items: [{ flavour: "bbq", grams: 100, qty: 21 }] })).items);
+  assert.ok(errors(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams: 100, qty: 0 }] })).items);
+  assert.ok(errors(goodOrder({ items: [{ flavour: "chicken-texas-bbq", grams: 100, qty: 21 }] })).items);
   assert.ok(errors(goodOrder({ name: "A" })).name);
   assert.ok(errors(goodOrder({ phone: "abc" })).phone);
   assert.ok(errors(goodOrder({ phone: "", email: "" })).phone);
@@ -128,7 +128,7 @@ test("a valid preorder is saved, returns a code and pings Telegram", async () =>
   assert.equal(sent.length, 1);
   assert.match(sent[0].url, /bott0ken\/sendMessage|bot.*\/sendMessage/);
   assert.match(sent[0].body.text, new RegExp(data.code));
-  assert.match(sent[0].body.text, /2 x 100 g Original/);
+  assert.match(sent[0].body.text, /2 x 100 g Texas BBQ Beef/);
 });
 
 test("invalid preorders get field errors back", async () => {
@@ -157,7 +157,7 @@ test("admin needs the key, lists orders and updates status", async () => {
   assert.ok(list.orders.length >= 1);
   const order = list.orders[0];
   assert.equal(order.status, "new");
-  assert.equal(order.items[0].flavour, "original");
+  assert.equal(order.items[0].flavour, "beef-texas-bbq");
 
   const patched = await fetch(`${base}/api/admin/preorders/${order.code}`, { method: "PATCH", headers, body: JSON.stringify({ status: "confirmed" }) });
   assert.equal(patched.status, 200);
@@ -169,7 +169,9 @@ test("admin needs the key, lists orders and updates status", async () => {
 
 test("public config is served without the readme note", async () => {
   const data = await (await fetch(`${base}/api/config`)).json();
-  assert.equal(data.flavours.length, 5);
+  assert.equal(data.flavours.length, 6);
+  assert.deepEqual(data.meats.map((m) => m.id), ["beef", "chicken"]);
+  for (const f of data.flavours) assert.ok(data.meats.some((m) => m.id === f.meat), `${f.id} has a known meat`);
   assert.equal(data._readme, undefined);
   assert.equal((await fetch(`${base}/health`)).status, 200);
 });
@@ -185,7 +187,7 @@ test("an order triggers an email to Kenny with everything in it", async () => {
   assert.equal(mail.to, "kenny@igtfreight.com");
   assert.ok(mail.subject.includes(code));
   assert.ok(mail.subject.includes("160 MDL"));
-  assert.match(mail.text, /2 x 100 g Original/);
+  assert.match(mail.text, /2 x 100 g Texas BBQ Beef/);
   assert.match(mail.text, /Email: ana@example.com/);
   assert.doesNotMatch(mail.text, /Phone:/);
   assert.match(mail.text, /Call before 6/);

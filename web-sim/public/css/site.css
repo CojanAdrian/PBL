@@ -450,27 +450,12 @@ html.motion body::after {
 }
 .hero__logo {
   position: absolute;
-  left: 0;
-  top: 2%;
-  width: 77%;
+  left: 9%;
+  top: 9%;
+  width: 82%;
   filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.6));
   transform: translate3d(calc(var(--px) * var(--depth) * 16px), calc(var(--py) * var(--depth) * 16px), 0) rotateY(calc(var(--px) * 7deg)) rotateX(calc(var(--py) * -7deg));
   animation: float 7s ease-in-out infinite;
-}
-.hero__pouch {
-  position: absolute;
-  right: -5%;
-  bottom: -9%;
-  width: 37%;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 0 6px rgba(10, 9, 8, 0.6);
-  transform: translate3d(calc(var(--px) * var(--depth) * 16px), calc(var(--py) * var(--depth) * 16px), 0) rotate(6deg);
-  animation: float 8s ease-in-out -2s infinite reverse;
-}
-.hero__pouch img {
-  width: 100%;
 }
 .hero__badge {
   position: absolute;
@@ -935,6 +920,17 @@ html:not(.motion) .craft__progress {
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
+.ftab__text {
+  display: grid;
+  gap: 3px;
+}
+.ftab__meat {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .ftab__heat {
   margin-left: auto;
   display: none;
@@ -1022,7 +1018,7 @@ html:not(.motion) .craft__progress {
     padding-inline: 24px;
   }
   .ftab__name {
-    font-size: 1.9rem;
+    font-size: 1.6rem;
   }
   .ftab__heat {
     display: block;
@@ -1168,7 +1164,7 @@ html:not(.motion) .craft__progress {
 
 /* ================= Flavour tabs on phones =================
    Plain wrapping buttons instead of a sideways-scrolling strip, so it is
-   obvious there are five flavours and that each one can be tapped. */
+   obvious there are six flavours (three beef, three chicken) and that each one can be tapped. */
 @media (max-width: 899px) {
   .fstage__tabs {
     flex-wrap: wrap;

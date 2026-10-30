@@ -1,6 +1,6 @@
 # Big Ed's Jerky
 
-Landing page and preorder system for Big Ed's Jerky, premium beef jerky made in Moldova.
+Landing page and preorder system for Big Ed's Jerky, premium beef and chicken jerky made in Moldova.
 
 Everything lives in [web-sim/](web-sim/): a small Node server that serves the website, takes preorders, and emails them.
 
@@ -8,7 +8,7 @@ Everything lives in [web-sim/](web-sim/): a small Node server that serves the we
 
 | Path | What it is |
 | --- | --- |
-| `web-sim/config.json` | **Flavours, sizes and prices.** Edit this to change the menu. |
+| `web-sim/config.json` | **Meats, flavours, sizes and prices.** Edit this to change the menu. |
 | `web-sim/public/` | The website (HTML, CSS, JS, images, fonts) |
 | `web-sim/src/` | The server: preorder API, admin API, email, database setup |
 | `web-sim/test/` | Server tests (`npm test`) |
@@ -32,7 +32,8 @@ The server checks and prices every preorder from this same file, so what people 
 
 ## Other things in `config.json`
 
-- `flavours`: name, heat level (1 to 5), colours, and the text shown on the site.
+- `meats`: Beef and Chicken, with the pouch colours for each (beef is black, chicken is brown).
+- `flavours`: one entry per product, e.g. `beef-texas-bbq` and `chicken-texas-bbq`. Each has its `meat`, name, heat level (1 to 5), colours, and the text shown on the site. Right now: Texas BBQ, Garlic Teriyaki and Honey Sriracha, in beef and in chicken.
 - `contact`: phone, email, Instagram and Telegram shown in the footer. Empty ones are hidden.
 - `paymentNote`: the "how do I pay" line shown while ordering.
 
@@ -103,5 +104,5 @@ npm test           # runs against an in-memory database
 ## Notes
 
 - Customers can leave out their phone number, but they must give a phone number **or** an email so Ed can reach them.
-- The photos are small (512 px) crops of the original product shots, upscaled. Sharper pictures of the pouch and the jerky would make the site even better: drop them into `web-sim/public/img/` using the same file names.
+- The photos are small (512 px) crops of the original product shots, upscaled. Sharper pictures of the jerky would make the site even better: drop them into `web-sim/public/img/` using the same file names.
 - A customer can send up to 15 preorders an hour from one connection. Invalid forms never count. A hidden spam-trap field catches bots.

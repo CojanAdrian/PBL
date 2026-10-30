@@ -120,9 +120,15 @@ function makeCode(randomInt) {
   return `BED-${code}`;
 }
 
-function describeOrder(order, config) {
-  const names = new Map(config.flavours.map((f) => [f.id, f.name]));
-  return order.items.map((i) => `${i.qty} x ${i.grams} g ${names.get(i.flavour)}`);
+// Flavour id -> full name with the meat, e.g. "Texas BBQ Beef".
+function flavourNames(config) {
+  const meats = new Map((config.meats || []).map((m) => [m.id, m.name]));
+  return new Map(config.flavours.map((f) => [f.id, [f.name, meats.get(f.meat)].filter(Boolean).join(" ")]));
 }
 
-module.exports = { validateOrder, makeCode, describeOrder, lineTotal };
+function describeOrder(order, config) {
+  const names = flavourNames(config);
+  return order.items.map((i) => `${i.qty} x ${i.grams} g ${names.get(i.flavour) || i.flavour}`);
+}
+
+module.exports = { validateOrder, makeCode, describeOrder, lineTotal, flavourNames };

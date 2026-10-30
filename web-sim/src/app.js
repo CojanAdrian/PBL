@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const path = require("path");
 const express = require("express");
 const compression = require("compression");
-const { validateOrder, makeCode, describeOrder } = require("./orders");
+const { validateOrder, makeCode, describeOrder, flavourNames } = require("./orders");
 const { buildOrderEmail } = require("./email");
 
 const STATUSES = ["new", "confirmed", "fulfilled", "cancelled"];
@@ -192,7 +192,7 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, fetchImp
       res.set("Cache-Control", "no-store");
       res.json({
         orders: rows.map(rowToOrder),
-        flavours: config.flavours.map(({ id, name }) => ({ id, name })),
+        flavours: [...flavourNames(config)].map(([id, name]) => ({ id, name })),
         sizes: config.sizes,
         currency: config.currency,
         email: emailInfo(),

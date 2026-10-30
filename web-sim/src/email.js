@@ -1,6 +1,7 @@
 // Emails Ed's team when a preorder comes in. Uses an email service's web API
 // (Resend or Brevo) rather than SMTP, because many hosts, Railway's cheaper
 // plans included, block outgoing SMTP.
+const { flavourNames } = require("./orders");
 
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const money = (n) => Number(n).toLocaleString("en-US");
@@ -70,7 +71,7 @@ function createMailer({ resendKey, brevoKey, from, fetchImpl = fetch } = {}) {
 }
 
 function buildOrderEmail({ code, order, config, adminUrl }) {
-  const names = new Map(config.flavours.map((f) => [f.id, f.name]));
+  const names = flavourNames(config);
   const cur = order.currency;
   const packs = order.totalPacks ?? order.items.reduce((s, i) => s + i.qty, 0);
   const lines = order.items.map((i) => ({ label: `${i.qty} x ${i.grams} g ${names.get(i.flavour) || i.flavour}`, price: i.price * i.qty }));

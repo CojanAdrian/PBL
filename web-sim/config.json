@@ -1,5 +1,5 @@
 {
-  "_readme": "Edit this file to change flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too.",
+  "_readme": "Edit this file to change meats, flavours, sizes and prices. The server uses it to check and price every preorder, and the website reads it too.",
   "brand": "Big Ed's Jerky",
   "currency": "MDL",
   "prices": {
@@ -35,56 +35,92 @@
     "instagram": "",
     "telegram": ""
   },
+  "meats": [
+    {
+      "id": "beef",
+      "name": "Beef",
+      "pouch": {
+        "top": "#2a2624",
+        "bottom": "#0d0b0a",
+        "cap": "#0a0908"
+      }
+    },
+    {
+      "id": "chicken",
+      "name": "Chicken",
+      "pouch": {
+        "top": "#7b5a3f",
+        "bottom": "#4b3424",
+        "cap": "#3a281b"
+      }
+    }
+  ],
   "flavours": [
     {
-      "id": "original",
-      "name": "Original",
-      "heat": 1,
-      "accent": "#d8231f",
-      "band": "#b81d1a",
-      "bandText": "#ffffff",
-      "tagline": "The classic cut.",
-      "notes": "Soy, garlic and a slow kiss of natural smoke. The one everyone starts with."
-    },
-    {
-      "id": "black-pepper",
-      "name": "Black Pepper",
+      "id": "beef-texas-bbq",
+      "meat": "beef",
+      "name": "Texas BBQ",
       "heat": 2,
-      "accent": "#c9c3bb",
-      "band": "#26231f",
-      "bandText": "#f1ece5",
-      "tagline": "Cracked, bold, a proper bite.",
-      "notes": "A heavy crust of cracked black pepper over deep, savoury beef."
+      "accent": "#d8392b",
+      "band": "#1f1a17",
+      "bandText": "#d8392b",
+      "tagline": "Smoky, sweet, Texas-sized.",
+      "notes": "Brown sugar, smoke and a peppery rub, slow dried onto premium beef."
     },
     {
-      "id": "garlic",
-      "name": "Garlic",
+      "id": "beef-garlic-teriyaki",
+      "meat": "beef",
+      "name": "Garlic Teriyaki",
       "heat": 1,
-      "accent": "#efd9a4",
-      "band": "#e9dcc0",
-      "bandText": "#1c1815",
-      "tagline": "Savoury, golden, unapologetic.",
-      "notes": "Big garlic flavour, mellow all the way through. No heat, all depth."
+      "accent": "#e6cf9f",
+      "band": "#1f1a17",
+      "bandText": "#e6cf9f",
+      "tagline": "Savoury, glossy, garlicky.",
+      "notes": "Soy and roasted garlic in a sticky teriyaki glaze. Deep and savoury, no heat."
     },
     {
-      "id": "spicy",
-      "name": "Spicy",
-      "heat": 5,
-      "accent": "#ff6a2b",
-      "band": "#d4561a",
-      "bandText": "#ffffff",
-      "tagline": "Slow heat that keeps building.",
-      "notes": "Chili that creeps up on you. For people who ask for extra."
+      "id": "beef-honey-sriracha",
+      "meat": "beef",
+      "name": "Honey Sriracha",
+      "heat": 4,
+      "accent": "#f07a2e",
+      "band": "#1f1a17",
+      "bandText": "#f07a2e",
+      "tagline": "Sweet first, then the fire.",
+      "notes": "Golden honey up front, then a sriracha kick that keeps building."
     },
     {
-      "id": "bbq",
-      "name": "BBQ",
+      "id": "chicken-texas-bbq",
+      "meat": "chicken",
+      "name": "Texas BBQ",
       "heat": 2,
-      "accent": "#c47a3e",
-      "band": "#7a3a1c",
-      "bandText": "#ffffff",
-      "tagline": "Sweet, smoky, sticky.",
-      "notes": "Brown sugar and smoke glazed onto every strip."
+      "accent": "#d8392b",
+      "band": "#3a281b",
+      "bandText": "#d8392b",
+      "tagline": "Smoky, sweet, Texas-sized.",
+      "notes": "Lean chicken with a sweet, smoky BBQ glaze and a peppery finish."
+    },
+    {
+      "id": "chicken-garlic-teriyaki",
+      "meat": "chicken",
+      "name": "Garlic Teriyaki",
+      "heat": 1,
+      "accent": "#e6cf9f",
+      "band": "#3a281b",
+      "bandText": "#e6cf9f",
+      "tagline": "Savoury, glossy, garlicky.",
+      "notes": "Tender chicken in a soy and garlic teriyaki glaze. Light, savoury, no heat."
+    },
+    {
+      "id": "chicken-honey-sriracha",
+      "meat": "chicken",
+      "name": "Honey Sriracha",
+      "heat": 4,
+      "accent": "#f07a2e",
+      "band": "#3a281b",
+      "bandText": "#f07a2e",
+      "tagline": "Sweet first, then the fire.",
+      "notes": "Sweet honey heat on lean chicken. Sticky, spicy, hard to stop."
     }
   ]
 }

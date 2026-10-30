@@ -3,6 +3,7 @@ import { createEmbers } from "./embers.js";
 import { initSmoothScroll, runPreloader, heroIntro, initNav, initScrollFX, initMarquee, pointerParallax, initMagnetic, initSpotlight, initCursor } from "./fx.js";
 import { initFlavours } from "./flavours.js";
 import { initBuilder } from "./builder.js";
+import { prepareMenu } from "./pouch.js";
 
 $("#year").textContent = String(new Date().getFullYear());
 
@@ -28,6 +29,7 @@ async function loadMenu() {
     const res = await fetch("/api/config", { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`Config responded ${res.status}`);
     const cfg = await res.json();
+    prepareMenu(cfg);
     initFlavours(cfg);
     pointerParallax($(".fstage__panel"));
     wireNavCount();
