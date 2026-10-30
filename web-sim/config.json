@@ -62,8 +62,8 @@
       "name": "Texas BBQ",
       "heat": 2,
       "accent": "#d8392b",
-      "band": "#1f1a17",
-      "bandText": "#d8392b",
+      "band": "#b8261c",
+      "bandText": "#ffffff",
       "tagline": "Smoky, sweet, Texas-sized.",
       "notes": "Brown sugar, smoke and a peppery rub, slow dried onto premium beef."
     },
@@ -73,8 +73,8 @@
       "name": "Garlic Teriyaki",
       "heat": 1,
       "accent": "#e6cf9f",
-      "band": "#1f1a17",
-      "bandText": "#e6cf9f",
+      "band": "#e6cf9f",
+      "bandText": "#1c1815",
       "tagline": "Savoury, glossy, garlicky.",
       "notes": "Soy and roasted garlic in a sticky teriyaki glaze. Deep and savoury, no heat."
     },
@@ -84,8 +84,8 @@
       "name": "Honey Sriracha",
       "heat": 4,
       "accent": "#f07a2e",
-      "band": "#1f1a17",
-      "bandText": "#f07a2e",
+      "band": "#d9601f",
+      "bandText": "#ffffff",
       "tagline": "Sweet first, then the fire.",
       "notes": "Golden honey up front, then a sriracha kick that keeps building."
     },
@@ -95,8 +95,8 @@
       "name": "Texas BBQ",
       "heat": 2,
       "accent": "#d8392b",
-      "band": "#3a281b",
-      "bandText": "#d8392b",
+      "band": "#b8261c",
+      "bandText": "#ffffff",
       "tagline": "Smoky, sweet, Texas-sized.",
       "notes": "Lean chicken with a sweet, smoky BBQ glaze and a peppery finish."
     },
@@ -106,8 +106,8 @@
       "name": "Garlic Teriyaki",
       "heat": 1,
       "accent": "#e6cf9f",
-      "band": "#3a281b",
-      "bandText": "#e6cf9f",
+      "band": "#e6cf9f",
+      "bandText": "#1c1815",
       "tagline": "Savoury, glossy, garlicky.",
       "notes": "Tender chicken in a soy and garlic teriyaki glaze. Light, savoury, no heat."
     },
@@ -117,8 +117,8 @@
       "name": "Honey Sriracha",
       "heat": 4,
       "accent": "#f07a2e",
-      "band": "#3a281b",
-      "bandText": "#f07a2e",
+      "band": "#d9601f",
+      "bandText": "#ffffff",
       "tagline": "Sweet first, then the fire.",
       "notes": "Sweet honey heat on lean chicken. Sticky, spicy, hard to stop."
     }
