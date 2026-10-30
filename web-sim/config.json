@@ -19,7 +19,7 @@
     "maxLines": 25,
     "maxTotalGrams": 10000
   },
-  "paymentNote": "No payment online. Ed confirms your order by phone or message, and you pay on pickup or delivery.",
+  "paymentNote": "No payment online. You pay when Ed delivers your order.",
   "contact": {
     "phone": "",
     "email": "",

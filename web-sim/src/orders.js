@@ -68,15 +68,15 @@ function validateOrder(body, config, now = new Date()) {
   const name = cleanText(input.name, 80);
   if (name.length < 2) errors.name = "Please tell us your name.";
 
-  // Phone is required (Ed calls to confirm); email is optional.
+  // Phone is required so Ed can reach the customer; email is optional.
   const phone = String(input.phone ?? "").replace(/[\s().-]/g, "");
-  if (!phone) errors.phone = "Add your phone number so Ed can confirm your order.";
+  if (!phone) errors.phone = "Add your phone number so Ed can reach you.";
   else if (!/^\+?\d{7,15}$/.test(phone)) errors.phone = "That phone number doesn't look right.";
 
   const email = cleanText(input.email, 254).toLowerCase();
   if (email && !EMAIL_RE.test(email)) errors.email = "That email doesn't look right.";
 
-  // Delivery only for now, and no address: Ed sorts that out on the phone.
+  // Delivery only for now, and no address field.
   const delivery = "delivery";
   const address = "";
 

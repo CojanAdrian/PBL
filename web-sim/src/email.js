@@ -76,7 +76,7 @@ function buildOrderEmail({ code, order, config, adminUrl }) {
   const packs = order.totalPacks ?? order.items.reduce((s, i) => s + i.qty, 0);
   const lines = order.items.map((i) => ({ label: describeItem(i, config, names), price: i.price * i.qty }));
   const contact = [order.phone && `Phone: ${order.phone}`, order.email && `Email: ${order.email}`].filter(Boolean);
-  const where = order.delivery === "delivery" ? (order.address ? `Delivery to: ${order.address}` : "Delivery (arrange it on the phone)") : "Pickup";
+  const where = order.delivery === "delivery" ? (order.address ? `Delivery to: ${order.address}` : "Delivery") : "Pickup";
 
   const text = [
     `New preorder ${code}`,

@@ -47,7 +47,7 @@ export function initBuilder(cfg, mount) {
   const state = {
     lines: [], // { flavour, grams, qty, custom }
     step: 1,
-    // Delivery only for now, and no address: Ed arranges it when he calls.
+    // Delivery only for now, and no address field.
     d: { name: "", phone: "", email: "", delivery: "delivery", address: "", date: "", note: "" },
     sending: false,
     error: "",
@@ -154,7 +154,7 @@ export function initBuilder(cfg, mount) {
           <div class="field">
             <label class="lbl" for="f-phone">Phone <span class="req" aria-hidden="true">*</span></label>
             <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+373 …" maxlength="30" required aria-describedby="h-phone e-phone">
-            <p class="hint" id="h-phone">Ed calls you on this number to confirm your order and the delivery.</p>
+            <p class="hint" id="h-phone">So Ed can reach you about your order.</p>
             <p class="err" id="e-phone" role="alert"></p>
           </div>
         </div>
@@ -165,7 +165,7 @@ export function initBuilder(cfg, mount) {
         </div>
         <div class="field">
           <span class="lbl">Delivery</span>
-          <p class="delivery-note">${ICON.truck}<span><strong>Brought to you.</strong> Ed sorts out where and when on the phone, so there's no address to fill in.</span></p>
+          <p class="delivery-note">${ICON.truck}<span><strong>Ed will bring it to you.</strong></span></p>
         </div>
         <div class="field">
           <label class="lbl" for="f-date">Preferred date (optional)</label>
@@ -624,7 +624,7 @@ export function initBuilder(cfg, mount) {
 
   const checks = {
     name: (v) => (v.trim().length < 2 ? "Please tell us your name." : ""),
-    phone: (v) => (!v.trim() ? "Add your phone number so Ed can confirm your order." : !/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "That phone number doesn't look right." : ""),
+    phone: (v) => (!v.trim() ? "Add your phone number so Ed can reach you." : !/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "That phone number doesn't look right." : ""),
     email: (v) => (v.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? "That email doesn't look right." : ""),
     date: (v) => (v && v < todayStr ? "Pick a date from today onwards." : ""),
   };
@@ -698,7 +698,7 @@ export function initBuilder(cfg, mount) {
         <div><dt>Name</dt><dd>${esc(d.name)}</dd></div>
         <div><dt>Phone</dt><dd>${esc(d.phone)}</dd></div>
         ${d.email ? `<div><dt>Email</dt><dd>${esc(d.email)}</dd></div>` : ""}
-        <div><dt>Delivery</dt><dd>Ed arranges it with you by phone</dd></div>
+        <div><dt>Delivery</dt><dd>Ed brings it to you</dd></div>
         ${d.date ? `<div><dt>Preferred date</dt><dd>${esc(d.date)}</dd></div>` : ""}
         ${d.note ? `<div style="grid-column:1/-1"><dt>Note</dt><dd>${esc(d.note)}</dd></div>` : ""}
       </dl>
@@ -817,7 +817,7 @@ export function initBuilder(cfg, mount) {
       <div class="rlist done__summary">${rows}<div class="rtotal"><span>${s.totals.packs} ${s.totals.packs === 1 ? "pack" : "packs"} · ${esc(fmtGrams(s.totals.grams))}</span><output>${num(s.totals.cost)} ${esc(cur)}</output></div></div>
       <ol class="done__next">
         <li><b>1</b><span>Ed gets your preorder right away.</span></li>
-        <li><b>2</b><span>He calls you on <strong>${esc(s.phone)}</strong> to confirm the details and the delivery.</span></li>
+        <li><b>2</b><span>If he needs anything, he'll reach you on <strong>${esc(s.phone)}</strong>.</span></li>
         <li><b>3</b><span>Your jerky is delivered, and you pay then.</span></li>
       </ol>
       <div class="done__actions">
