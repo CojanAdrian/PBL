@@ -1,6 +1,6 @@
 // Keeps a Google Sheet in step with the preorders. The sheet runs a small Apps
 // Script (google-sheets/apps-script.gs) published as a web app; we POST orders
-// to it and it adds a row, or updates the row with the same order code.
+// to it and it adds a row for each one it doesn't have yet, and deletes rows on request.
 const { describeOrder } = require("./orders");
 
 const STATUS_LABEL = { new: "New", confirmed: "Confirmed", fulfilled: "Done", cancelled: "Cancelled" };
@@ -29,28 +29,31 @@ function sheetRow(order, config) {
 // Returns null when no sheet is configured.
 function createSheetSync({ url, token, config, fetchImpl = fetch } = {}) {
   if (!url) return null;
+  async function post(payload) {
+    const res = await fetchImpl(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token || "", ...payload }),
+      redirect: "follow",
+      signal: AbortSignal.timeout(20000),
+    });
+    const text = typeof res.text === "function" ? await res.text() : "";
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      /* not JSON: Google sent an error or login page */
+    }
+    if (!res.ok || !data || !data.ok) {
+      const reason = data?.error || (/<html/i.test(text) ? "Google returned a web page instead of the script. Is the web app deployed with access for 'Anyone'?" : text.slice(0, 200));
+      throw new Error(`Google Sheets: ${reason || `responded ${res.status}`}`);
+    }
+    return data;
+  }
+
   return {
-    async push(orders) {
-      const res = await fetchImpl(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token || "", orders: orders.map((o) => sheetRow(o, config)) }),
-        redirect: "follow",
-        signal: AbortSignal.timeout(20000),
-      });
-      const text = typeof res.text === "function" ? await res.text() : "";
-      let data = null;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        /* not JSON: Google sent an error or login page */
-      }
-      if (!res.ok || !data || !data.ok) {
-        const reason = data?.error || (/<html/i.test(text) ? "Google returned a web page instead of the script. Is the web app deployed with access for 'Anyone'?" : text.slice(0, 200));
-        throw new Error(`Google Sheets: ${reason || `responded ${res.status}`}`);
-      }
-      return data;
-    },
+    push: (orders) => post({ orders: orders.map((o) => sheetRow(o, config)) }),
+    remove: (codes) => post({ action: "delete", codes }),
   };
 }
 

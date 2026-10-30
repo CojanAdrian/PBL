@@ -68,19 +68,17 @@ function validateOrder(body, config, now = new Date()) {
   const name = cleanText(input.name, 80);
   if (name.length < 2) errors.name = "Please tell us your name.";
 
-  // Phone and email are both optional, but Ed needs at least one way to reach you.
+  // Phone is required (Ed calls to confirm); email is optional.
   const phone = String(input.phone ?? "").replace(/[\s().-]/g, "");
-  if (phone && !/^\+?\d{7,15}$/.test(phone)) errors.phone = "That phone number doesn't look right.";
+  if (!phone) errors.phone = "Add your phone number so Ed can confirm your order.";
+  else if (!/^\+?\d{7,15}$/.test(phone)) errors.phone = "That phone number doesn't look right.";
 
   const email = cleanText(input.email, 254).toLowerCase();
   if (email && !EMAIL_RE.test(email)) errors.email = "That email doesn't look right.";
-  if (!phone && !email) errors.phone = "Add a phone number or an email so Ed can confirm your order.";
 
-  const delivery = input.delivery === "delivery" ? "delivery" : input.delivery === "pickup" ? "pickup" : null;
-  if (!delivery) errors.delivery = "Choose pickup or delivery.";
-
-  const address = cleanText(input.address, 300);
-  if (delivery === "delivery" && address.length < 5) errors.address = "Add your address or area for delivery.";
+  // Delivery only for now, and no address: Ed sorts that out on the phone.
+  const delivery = "delivery";
+  const address = "";
 
   let date = "";
   if (input.date) {
@@ -108,7 +106,7 @@ function validateOrder(body, config, now = new Date()) {
       phone,
       email,
       delivery,
-      address: delivery === "delivery" ? address : "",
+      address,
       date,
       note,
       items: items.map((i) => ({ ...i, price: lineTotal(i.flavour, i.grams, config) })),

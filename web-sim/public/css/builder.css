@@ -1286,3 +1286,23 @@ textarea.input {
     display: none;
   }
 }
+
+/* ---------- Delivery (the only option for now) ---------- */
+.delivery-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  line-height: 1.45;
+}
+.delivery-note svg {
+  flex-shrink: 0;
+  color: var(--ember);
+}
+.delivery-note strong {
+  color: var(--text);
+}

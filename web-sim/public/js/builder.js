@@ -15,7 +15,6 @@ const ICON = {
   close: icon('<path d="M6 6l12 12M18 6L6 18"/>'),
   arrow: icon('<path d="M5 12h14M13 6l6 6-6 6"/>'),
   check: icon('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 16, 3),
-  pickup: icon('<path d="M4 9l1.5-4h13L20 9M4 9v10h16V9M4 9h16M9 14h6"/>', 22, 2),
   truck: icon('<path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z"/>', 22, 2),
 };
 
@@ -48,7 +47,8 @@ export function initBuilder(cfg, mount) {
   const state = {
     lines: [], // { flavour, grams, qty, custom }
     step: 1,
-    d: { name: "", phone: "", email: "", delivery: "pickup", address: "", date: "", note: "" },
+    // Delivery only for now, and no address: Ed arranges it when he calls.
+    d: { name: "", phone: "", email: "", delivery: "delivery", address: "", date: "", note: "" },
     sending: false,
     error: "",
     done: null,
@@ -62,8 +62,9 @@ export function initBuilder(cfg, mount) {
       state.lines = (saved.lines || [])
         .filter((l) => byId.has(l.flavour) && validGrams(byId.get(l.flavour), l.grams))
         .map((l) => ({ flavour: l.flavour, grams: l.grams, qty: clampQty(Number(l.qty) || 1), custom: customOn && !byId.get(l.flavour).box && (!cfg.sizes.includes(l.grams) || Boolean(l.custom)) }));
-      Object.assign(state.d, { name: "", phone: "", email: "", address: "", note: "" }, saved.d || {});
-      if (state.d.delivery !== "delivery") state.d.delivery = "pickup";
+      Object.assign(state.d, { name: "", phone: "", email: "", note: "" }, saved.d || {});
+      state.d.delivery = "delivery";
+      state.d.address = "";
     } catch {
       /* start fresh */
     }
@@ -151,9 +152,9 @@ export function initBuilder(cfg, mount) {
             <p class="err" id="e-name" role="alert"></p>
           </div>
           <div class="field">
-            <label class="lbl" for="f-phone">Phone (optional)</label>
-            <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+373 …" maxlength="30" aria-describedby="h-phone e-phone">
-            <p class="hint" id="h-phone">Add a phone number, an email, or both, so Ed can confirm your order.</p>
+            <label class="lbl" for="f-phone">Phone <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+373 …" maxlength="30" required aria-describedby="h-phone e-phone">
+            <p class="hint" id="h-phone">Ed calls you on this number to confirm your order and the delivery.</p>
             <p class="err" id="e-phone" role="alert"></p>
           </div>
         </div>
@@ -163,21 +164,8 @@ export function initBuilder(cfg, mount) {
           <p class="err" id="e-email" role="alert"></p>
         </div>
         <div class="field">
-          <span class="lbl" id="l-delivery">How would you like to get it?</span>
-          <div class="choices" role="radiogroup" aria-labelledby="l-delivery" data-delivery>
-            <button class="choice" type="button" role="radio" aria-checked="true" data-v="pickup">${ICON.pickup}<strong>Pickup</strong><span>Collect it from Ed</span></button>
-            <button class="choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-v="delivery">${ICON.truck}<strong>Delivery</strong><span>Brought to your door</span></button>
-          </div>
-          <p class="err" id="e-delivery" role="alert"></p>
-        </div>
-        <div class="grow" data-addr>
-          <div class="grow__clip" style="padding:6px;margin:-6px">
-            <div class="field">
-              <label class="lbl" for="f-address">Delivery address or area <span class="req" aria-hidden="true">*</span></label>
-              <textarea class="input" id="f-address" name="address" rows="2" maxlength="300" autocomplete="street-address" aria-describedby="e-address"></textarea>
-              <p class="err" id="e-address" role="alert"></p>
-            </div>
-          </div>
+          <span class="lbl">Delivery</span>
+          <p class="delivery-note">${ICON.truck}<span><strong>Brought to you.</strong> Ed sorts out where and when on the phone, so there's no address to fill in.</span></p>
         </div>
         <div class="field">
           <label class="lbl" for="f-date">Preferred date (optional)</label>
@@ -627,7 +615,6 @@ export function initBuilder(cfg, mount) {
   $$(".seg", mount).forEach((group) =>
     arrowNav(group, '[role="radio"]', (btn) => btn.click())
   );
-  arrowNav($("[data-delivery]", mount), '[role="radio"]', (btn) => btn.click());
   window.addEventListener("box:add", (e) => addFlavour(e.detail.id));
 
   // ---------- Details form ----------
@@ -637,9 +624,8 @@ export function initBuilder(cfg, mount) {
 
   const checks = {
     name: (v) => (v.trim().length < 2 ? "Please tell us your name." : ""),
-    phone: (v) => (v.trim() && !/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "That phone number doesn't look right." : ""),
+    phone: (v) => (!v.trim() ? "Add your phone number so Ed can confirm your order." : !/^\+?\d{7,15}$/.test(v.replace(/[\s().-]/g, "")) ? "That phone number doesn't look right." : ""),
     email: (v) => (v.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? "That email doesn't look right." : ""),
-    address: (v) => (state.d.delivery === "delivery" && v.trim().length < 5 ? "Add your address or area for delivery." : ""),
     date: (v) => (v && v < todayStr ? "Pick a date from today onwards." : ""),
   };
   function showError(name, message) {
@@ -658,21 +644,8 @@ export function initBuilder(cfg, mount) {
   }
 
   function syncDetails() {
-    for (const name of ["name", "phone", "email", "address", "date", "note"]) field(name).value = state.d[name] || "";
+    for (const name of ["name", "phone", "email", "date", "note"]) field(name).value = state.d[name] || "";
     $("[data-note-count]", mount).textContent = String(state.d.note.length);
-    syncDelivery();
-  }
-  function syncDelivery() {
-    for (const b of $$("[data-delivery] [role=radio]", mount)) {
-      const on = b.dataset.v === state.d.delivery;
-      b.setAttribute("aria-checked", String(on));
-      b.tabIndex = on ? 0 : -1;
-    }
-    const open = state.d.delivery === "delivery";
-    const wrap = $("[data-addr]", mount);
-    wrap.classList.toggle("is-open", open);
-    wrap.inert = !open;
-    if (!open) showError("address", "");
   }
 
   el.form.addEventListener("input", (e) => {
@@ -681,11 +654,6 @@ export function initBuilder(cfg, mount) {
     state.d[name] = e.target.value;
     if (name === "note") $("[data-note-count]", mount).textContent = String(e.target.value.length);
     if (e.target.getAttribute("aria-invalid") === "true") validateField(name);
-    // Typing an email (or phone) clears the "add a way to reach you" message.
-    if ((name === "email" || name === "phone") && (state.d.phone.trim() || state.d.email.trim()) && $("#e-phone", mount).textContent.startsWith("Add a phone")) {
-      showError("phone", "");
-      showError("email", checks.email(state.d.email));
-    }
     save();
   });
   el.form.addEventListener("focusout", (e) => {
@@ -693,24 +661,11 @@ export function initBuilder(cfg, mount) {
     if (checks[name] && state.d[name] !== undefined && e.target.value !== "") validateField(name);
     else if (name === "name") validateField(name);
   });
-  $("[data-delivery]", mount).addEventListener("click", (e) => {
-    const b = e.target.closest("[role=radio]");
-    if (!b) return;
-    state.d.delivery = b.dataset.v;
-    showError("delivery", "");
-    syncDelivery();
-    save();
-  });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
     let firstBad = null;
     for (const name of Object.keys(checks)) {
       if (validateField(name) && !firstBad) firstBad = field(name);
-    }
-    // Phone and email are both optional, but Ed needs at least one of them.
-    if (!state.d.phone.trim() && !state.d.email.trim()) {
-      showError("phone", "Add a phone number or an email so Ed can confirm your order.");
-      if (!firstBad) firstBad = field("phone");
     }
     if (firstBad) {
       firstBad.focus();
@@ -741,9 +696,9 @@ export function initBuilder(cfg, mount) {
       <div class="review__head"><h4>Your details</h4><button class="link-btn" type="button" data-edit="2">Edit</button></div>
       <dl class="kv">
         <div><dt>Name</dt><dd>${esc(d.name)}</dd></div>
-        ${d.phone ? `<div><dt>Phone</dt><dd>${esc(d.phone)}</dd></div>` : ""}
+        <div><dt>Phone</dt><dd>${esc(d.phone)}</dd></div>
         ${d.email ? `<div><dt>Email</dt><dd>${esc(d.email)}</dd></div>` : ""}
-        <div><dt>${d.delivery === "delivery" ? "Delivery to" : "Pickup"}</dt><dd>${d.delivery === "delivery" ? esc(d.address) : "Collect from Ed"}</dd></div>
+        <div><dt>Delivery</dt><dd>Ed arranges it with you by phone</dd></div>
         ${d.date ? `<div><dt>Preferred date</dt><dd>${esc(d.date)}</dd></div>` : ""}
         ${d.note ? `<div style="grid-column:1/-1"><dt>Note</dt><dd>${esc(d.note)}</dd></div>` : ""}
       </dl>
@@ -766,7 +721,7 @@ export function initBuilder(cfg, mount) {
     renderCTAs();
   }
 
-  const FIELD_STEP = { name: 2, phone: 2, email: 2, address: 2, date: 2, delivery: 2, items: 1 };
+  const FIELD_STEP = { name: 2, phone: 2, email: 2, date: 2, items: 1 };
   async function submit() {
     if (state.sending) return;
     state.error = "";
@@ -862,8 +817,8 @@ export function initBuilder(cfg, mount) {
       <div class="rlist done__summary">${rows}<div class="rtotal"><span>${s.totals.packs} ${s.totals.packs === 1 ? "pack" : "packs"} · ${esc(fmtGrams(s.totals.grams))}</span><output>${num(s.totals.cost)} ${esc(cur)}</output></div></div>
       <ol class="done__next">
         <li><b>1</b><span>Ed gets your preorder right away.</span></li>
-        <li><b>2</b><span>He gets in touch on <strong>${esc(s.phone || s.email)}</strong> to confirm the details.</span></li>
-        <li><b>3</b><span>${s.delivery === "delivery" ? "Your jerky is delivered" : "You collect your jerky"}, and you pay then.</span></li>
+        <li><b>2</b><span>He calls you on <strong>${esc(s.phone)}</strong> to confirm the details and the delivery.</span></li>
+        <li><b>3</b><span>Your jerky is delivered, and you pay then.</span></li>
       </ol>
       <div class="done__actions">
         <button class="btn btn--primary" type="button" data-again><span>Build another box</span></button>

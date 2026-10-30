@@ -250,6 +250,11 @@
   font-size: 1.5rem;
   font-variant-numeric: tabular-nums;
 }
+.order__del:hover,
+.order__del:focus-visible {
+  border-color: rgba(255, 122, 107, 0.6);
+  color: var(--danger);
+}
 
 /* ---------- Status dropdown ---------- */
 .dot {

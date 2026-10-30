@@ -4,7 +4,8 @@
  * The website sends every new order to this script, which adds it as a row
  * with Status "New". Ed sets the status here, with the dropdown in the Status
  * column. An order code that is already in the sheet is skipped, so the
- * website never overwrites anything Ed changed.
+ * website never overwrites anything Ed changed. Deleting an order on the
+ * website's admin page deletes its row here too.
  *
  * Setup (once): see "Google Sheets" in the project README.
  *   1. Extensions -> Apps Script, paste this whole file, save.
@@ -55,6 +56,18 @@ function doPost(e) {
   lock.waitLock(25000);
   try {
     var sheet = getSheet();
+    if (body.action === "delete") {
+      var deleted = 0;
+      var codes = body.codes || [];
+      for (var j = 0; j < codes.length; j++) {
+        var row = findRow(sheet, codes[j]);
+        if (row) {
+          sheet.deleteRow(row);
+          deleted++;
+        }
+      }
+      return reply({ ok: true, deleted: deleted });
+    }
     var orders = body.orders || [];
     var added = 0;
     for (var i = 0; i < orders.length; i++) if (addIfMissing(sheet, orders[i])) added++;
@@ -92,14 +105,19 @@ function col(key) {
   return -1;
 }
 
+// Row number of an order code, or 0 when it is not in the sheet.
+function findRow(sheet, code) {
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var found = sheet.getRange(2, col("code"), last - 1, 1)
+    .createTextFinder(String(code)).matchEntireCell(true).findNext();
+  return found ? found.getRow() : 0;
+}
+
 // Adds the order as a new row, unless its code is already in the sheet.
 function addIfMissing(sheet, order) {
+  if (findRow(sheet, order.code)) return false;
   var last = sheet.getLastRow();
-  if (last > 1) {
-    var found = sheet.getRange(2, col("code"), last - 1, 1)
-      .createTextFinder(String(order.code)).matchEntireCell(true).findNext();
-    if (found) return false;
-  }
   order.status = "New";
   order.added = new Date();
   if (order.created) order.created = new Date(order.created);

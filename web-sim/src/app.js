@@ -160,7 +160,7 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, sheet, f
       ...describeOrder(order, config),
       `Total: ${order.totalPrice} ${order.currency} (${order.totalGrams} g)`,
       [order.name, order.phone, order.email].filter(Boolean).join(" - "),
-      order.delivery === "delivery" ? `Delivery: ${order.address}` : "Pickup",
+      order.delivery === "delivery" ? (order.address ? `Delivery: ${order.address}` : "Delivery") : "Pickup",
     ];
     if (order.date) lines.push(`Wanted: ${order.date}`);
     if (order.note) lines.push(`Note: ${order.note}`);
@@ -251,6 +251,31 @@ function createApp({ pool, config, adminKey, telegram, mailer, emailTo, sheet, f
         return res.status(502).json({ error: err.message });
       }
       res.json({ ok: true, count: rows.length, added: result?.added ?? null });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Delete an order for good: from the database and from the Google Sheet.
+  app.delete("/api/admin/preorders/:code", requireAdmin, async (req, res, next) => {
+    try {
+      if (!pool) return res.status(503).json({ error: "No database." });
+      const code = String(req.params.code);
+      const result = await pool.query("DELETE FROM preorders WHERE code = $1", [code]);
+      if (result.rowCount === 0) return res.status(404).json({ error: "Order not found." });
+      let sheetResult = "off";
+      if (sheet) {
+        try {
+          await sheet.remove([code]);
+          sheetState.lastError = null;
+          sheetResult = "removed";
+        } catch (err) {
+          console.error("Sheet delete failed:", err.message);
+          sheetState.lastError = err.message;
+          sheetResult = err.message;
+        }
+      }
+      res.json({ ok: true, sheet: sheetResult });
     } catch (err) {
       next(err);
     }

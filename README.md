@@ -21,7 +21,7 @@ Set in `web-sim/config.json`:
 | --- | --- |
 | Beef, 100 g pack | 130 lei |
 | Chicken, 100 g pack | 70 lei |
-| Taster box (all six flavours) | 285 lei |
+| Taster box (all six flavours, 6 x 50 g = 300 g) | 285 lei |
 
 - `meats[].prices`: the price of a pack for each meat, by size (`"100": 130`).
 - `boxes`: the Taster box: its price, its total weight (`grams`) and its text. It is the first quick start in the order builder.
@@ -96,6 +96,7 @@ Notes:
 - "Anyone" only means the script's web address accepts requests. The sheet itself stays private, and the script refuses anything without the right `TOKEN`.
 - If an update ever fails (Google down, wrong token), the order is still saved, the reason shows in the box on `/admin`, and **Sync all orders** adds whatever is missing. It only adds orders that are not in the sheet yet; it never changes rows already there, so Ed's statuses and edits are safe.
 - Changes made in the sheet stay in the sheet; they do not flow back to the website.
+- To delete an order, use **Delete** on `/admin`: it removes the order from the website and its row from the sheet. If you only delete the row in the sheet, the order is still on `/admin`, and **Sync all orders** would add it back.
 - Need Excel? *File → Download → Microsoft Excel (.xlsx)* in the sheet.
 - If you change the script later, use *Deploy → Manage deployments → Edit → New version* so the URL stays the same.
 
@@ -103,7 +104,7 @@ Notes:
 
 Open `/admin` on the site and enter the `ADMIN_KEY`.
 
-- **Orders**: every preorder, newest first. Read-only: statuses are kept in the Google Sheet.
+- **Orders**: every preorder, newest first. Statuses are kept in the Google Sheet. **Delete** removes an order here and from the sheet (it asks first).
 - **Stats**: total value, average order, packs, weight, flavour and pack-size breakdowns, pickup vs delivery, and the last 14 days. Cancellations are only marked in the sheet, so these count every order. Switch between all time, 30 days and 7 days.
 
 Only **wrong** keys count towards the lockout (10 wrong keys in 15 minutes). Using the page normally never locks you out.
@@ -125,6 +126,7 @@ npm test           # runs against an in-memory database
 
 ## Notes
 
-- Customers can leave out their phone number, but they must give a phone number **or** an email so Ed can reach them.
+- Name and phone number are required, email is optional.
+- Delivery is the only option for now and there is no address field: Ed arranges the delivery when he calls.
 - The photos are small (512 px) crops of the original product shots, upscaled. Sharper pictures of the jerky would make the site even better: drop them into `web-sim/public/img/` using the same file names.
 - A customer can send up to 15 preorders an hour from one connection. Invalid forms never count. A hidden spam-trap field catches bots.

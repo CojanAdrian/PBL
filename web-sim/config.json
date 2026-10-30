@@ -125,8 +125,8 @@
       "id": "taster-box",
       "name": "Taster box",
       "price": 285,
-      "grams": 180,
-      "_note": "grams = what the whole box weighs. Six small 30 g packs, one of every flavour.",
+      "grams": 300,
+      "_note": "grams = what the whole box weighs. Six 50 g packs, one of every flavour.",
       "tagline": "All six flavours in one box.",
       "notes": "A small pack of every flavour, beef and chicken. The easiest way to find your favourite."
     }

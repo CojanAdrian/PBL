@@ -9,13 +9,13 @@ const { createMailer, buildOrderEmail } = require("../src/email");
 const { createSheetSync } = require("../src/sheets");
 const config = require("../config.json");
 
-let server, base, sent, emails, sheetPushes;
+let server, base, sent, emails, sheetPushes, sheetDeletes;
 
 const goodOrder = (extra = {}) => ({
   name: "Ana Popescu",
   phone: "+373 69 123 456",
   email: "",
-  delivery: "pickup",
+  delivery: "delivery",
   items: [{ flavour: "beef-texas-bbq", grams: 100, qty: 2 }],
   ...extra,
 });
@@ -27,6 +27,7 @@ before(async () => {
   sent = [];
   emails = [];
   sheetPushes = [];
+  sheetDeletes = [];
   const app = createApp({
     pool: new Pool(),
     config,
@@ -34,7 +35,7 @@ before(async () => {
     telegram: { token: "t0ken", chatId: "42" },
     mailer: { send: async (m) => emails.push(m) },
     emailTo: "kenny@igtfreight.com",
-    sheet: { push: async (orders) => sheetPushes.push(orders) },
+    sheet: { push: async (orders) => sheetPushes.push(orders), remove: async (codes) => sheetDeletes.push(...codes) },
     fetchImpl: async (url, opts) => {
       sent.push({ url, body: JSON.parse(opts.body) });
       return { ok: true, status: 200 };
@@ -77,19 +78,27 @@ test("prices: beef 130 and chicken 70 per 100 g pack, the taster box 285", () =>
   assert.equal(price("beef-honey-sriracha", 100), 130);
   assert.equal(price("chicken-texas-bbq", 100), 70);
   assert.equal(price("chicken-garlic-teriyaki", 100), 70);
-  assert.equal(price("taster-box", 180), 285);
+  assert.equal(price("taster-box", 300), 285);
   // a box always weighs what config.json says
   assert.equal(validateOrder(goodOrder({ items: [{ flavour: "taster-box", grams: 100, qty: 1 }] }), config).ok, false);
 });
 
-test("phone is optional, but a phone or an email is needed", () => {
+test("name and phone are required, email is optional", () => {
   const ok = (extra) => validateOrder(goodOrder(extra), config);
-  assert.equal(ok({ phone: "", email: "ana@example.com" }).ok, true);
   assert.equal(ok({ phone: "+373 69 123 456", email: "" }).ok, true);
-  const neither = ok({ phone: "", email: "" });
-  assert.equal(neither.ok, false);
-  assert.match(neither.errors.phone, /phone number or an email/);
-  assert.ok(ok({ phone: "abc", email: "ana@example.com" }).errors.phone);
+  assert.equal(ok({ email: "ana@example.com" }).ok, true);
+  const noPhone = ok({ phone: "", email: "ana@example.com" });
+  assert.equal(noPhone.ok, false);
+  assert.match(noPhone.errors.phone, /phone number/);
+  assert.ok(ok({ phone: "abc" }).errors.phone);
+  assert.ok(ok({ name: "" }).errors.name);
+});
+
+test("delivery is the only option for now, with no address", () => {
+  const { order } = validateOrder(goodOrder({ delivery: "pickup", address: "Str. Test 1" }), config);
+  assert.equal(order.delivery, "delivery");
+  assert.equal(order.address, "");
+  assert.equal(validateOrder(goodOrder({ delivery: undefined }), config).ok, true);
 });
 
 test("custom sizes are off for now; switched on, they follow the 100 g price", () => {
@@ -122,11 +131,8 @@ test("validateOrder rejects bad items, contact details and dates", () => {
   assert.ok(errors(goodOrder({ phone: "abc" })).phone);
   assert.ok(errors(goodOrder({ phone: "", email: "" })).phone);
   assert.ok(errors(goodOrder({ email: "not-an-email" })).email);
-  assert.ok(errors(goodOrder({ delivery: "teleport" })).delivery);
-  assert.ok(errors(goodOrder({ delivery: "delivery", address: "" })).address);
   assert.ok(errors(goodOrder({ date: "2001-01-01" })).date);
   assert.ok(errors(goodOrder({ date: "garbage" })).date);
-  assert.deepEqual(validateOrder(goodOrder({ delivery: "delivery", address: "Str. Test 1" }), config).ok, true);
 });
 
 test("a valid preorder is saved, returns a code and pings Telegram", async () => {
@@ -186,7 +192,7 @@ test("public config is served without the readme note", async () => {
 
 test("an order triggers an email to Kenny with everything in it", async () => {
   emails.length = 0;
-  const res = await post(goodOrder({ phone: "", email: "ana@example.com", note: "Call before 6" }));
+  const res = await post(goodOrder({ email: "ana@example.com", note: "Call before 6" }));
   assert.equal(res.status, 201);
   const { code } = await res.json();
   await new Promise((r) => setTimeout(r, 30));
@@ -197,7 +203,7 @@ test("an order triggers an email to Kenny with everything in it", async () => {
   assert.ok(mail.subject.includes("260 lei"));
   assert.match(mail.text, /2 x 100 g Texas BBQ Beef/);
   assert.match(mail.text, /Email: ana@example.com/);
-  assert.doesNotMatch(mail.text, /Phone:/);
+  assert.match(mail.text, /Phone: \+37369123456/);
   assert.match(mail.text, /Call before 6/);
   assert.equal(mail.replyTo, "ana@example.com");
   assert.match(mail.html, new RegExp(code));
@@ -333,7 +339,7 @@ test("without a database preorders say so instead of pretending", async () => {
 
 test("every new order is added to the Google Sheet straight away", async () => {
   sheetPushes.length = 0;
-  const res = await post(goodOrder({ items: [{ flavour: "taster-box", grams: 180, qty: 1 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2 }] }));
+  const res = await post(goodOrder({ items: [{ flavour: "taster-box", grams: 300, qty: 1 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2 }] }));
   assert.equal(res.status, 201);
   const { code } = await res.json();
   await new Promise((r) => setTimeout(r, 30));
@@ -365,8 +371,8 @@ test("sheet rows are ready to write, and a bad token or deployment gives a clear
   });
   const order = {
     code: "BED-TEST1", createdAt: "2026-10-30T10:00:00.000Z", status: "confirmed", name: "Ana", phone: "+37369123456", email: "",
-    delivery: "pickup", address: "", date: "", note: "", currency: "lei", totalGrams: 380, totalPrice: 425,
-    items: [{ flavour: "taster-box", grams: 180, qty: 1, price: 285 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2, price: 70 }],
+    delivery: "delivery", address: "", date: "", note: "", currency: "lei", totalGrams: 500, totalPrice: 425,
+    items: [{ flavour: "taster-box", grams: 300, qty: 1, price: 285 }, { flavour: "chicken-texas-bbq", grams: 100, qty: 2, price: 70 }],
   };
   await ok.push([order]);
   assert.equal(request.body.token, "tok");
@@ -381,4 +387,19 @@ test("sheet rows are ready to write, and a bad token or deployment gives a clear
   const loginPage = createSheetSync({ url: "https://script.test/exec", config, fetchImpl: async () => ({ ok: true, status: 200, text: async () => "<html>Sign in</html>" }) });
   await assert.rejects(loginPage.push([order]), /Anyone/);
   assert.equal(createSheetSync({ config }), null);
+});
+
+test("deleting an order on the admin page removes it here and from the sheet", async () => {
+  const res = await post(goodOrder());
+  const { code } = await res.json();
+  const headers = { "x-admin-key": "secret-admin-key" };
+  assert.equal((await fetch(`${base}/api/admin/preorders/${code}`, { method: "DELETE" })).status, 401);
+
+  const del = await fetch(`${base}/api/admin/preorders/${code}`, { method: "DELETE", headers });
+  assert.equal(del.status, 200);
+  assert.equal((await del.json()).sheet, "removed");
+  assert.ok(sheetDeletes.includes(code));
+  const list = await (await fetch(`${base}/api/admin/preorders`, { headers })).json();
+  assert.ok(!list.orders.some((o) => o.code === code));
+  assert.equal((await fetch(`${base}/api/admin/preorders/${code}`, { method: "DELETE", headers })).status, 404);
 });

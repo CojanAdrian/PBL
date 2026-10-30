@@ -106,9 +106,10 @@ function card(o) {
     <div class="order__top"><span class="order__code">${esc(o.code)}</span><span class="order__when">${esc(when)}</span></div>
     <p class="order__who">${who}</p>
     <ul class="order__items">${o.items.map((i) => `<li><span>${esc(itemLabel(i))}</span><span>${money(i.price * i.qty)} ${esc(o.currency)}</span></li>`).join("")}</ul>
-    <p class="order__meta">${o.delivery === "delivery" ? `Delivery: ${esc(o.address)}` : "Pickup"}${o.date ? ` · wanted ${esc(o.date)}` : ""}${o.note ? `<br>Note: ${esc(o.note)}` : ""}</p>
+    <p class="order__meta">${o.delivery === "delivery" ? (o.address ? `Delivery: ${esc(o.address)}` : "Delivery") : "Pickup"}${o.date ? ` · wanted ${esc(o.date)}` : ""}${o.note ? `<br>Note: ${esc(o.note)}` : ""}</p>
     <div class="order__foot">
       <span class="order__total">${money(o.totalPrice)} ${esc(o.currency)} <small class="order__when">${weight(o.totalGrams)}</small></span>
+      <button class="btn btn--ghost btn--sm order__del" type="button" data-del="${esc(o.code)}"><span>Delete</span></button>
     </div>
   </li>`;
 }
@@ -208,6 +209,31 @@ function renderStats() {
       <ul class="cols" role="img" aria-label="Order value per day for the last 14 days. ${esc(daySummary)}">${dayCols}</ul>
     </section>`;
 }
+
+// ---------------- Deleting ----------------
+$("#list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-del]");
+  if (!btn) return;
+  const code = btn.dataset.del;
+  if (!confirm(`Delete order ${code}? It is removed from this page and from the Google Sheet, and can't be brought back.`)) return;
+  btn.disabled = true;
+  try {
+    const r = await api(`/api/admin/preorders/${encodeURIComponent(code)}`, { method: "DELETE" });
+    orders = orders.filter((o) => o.code !== code);
+    if (r.sheet === "removed" || r.sheet === "off") {
+      sheet = { ...sheet, lastError: null };
+      toast(r.sheet === "removed" ? `${code} deleted here and from the sheet.` : `${code} deleted.`);
+    } else {
+      sheet = { ...sheet, lastError: r.sheet };
+      toast(`${code} deleted here, but not from the sheet. Delete its row there by hand.`);
+    }
+    render();
+  } catch (err) {
+    btn.disabled = false;
+    toast(err.status === 404 ? "That order was already deleted." : "Couldn't delete it. Try again.");
+    if (err.status === 404) load().catch(() => {});
+  }
+});
 
 // ---------------- Wiring ----------------
 $("#login").addEventListener("submit", async (e) => {
