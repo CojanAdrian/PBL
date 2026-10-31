@@ -43,5 +43,8 @@ return [
         // Google Sheet (google-sheets/apps-script.gs published as a web app).
         'sheets_url' => env('SHEETS_WEBHOOK_URL'),
         'sheets_token' => env('SHEETS_TOKEN'),
+        // The spreadsheet's link for the "Open Google Sheet" button. Optional: the
+        // script sends it with every reply, so it is usually picked up by itself.
+        'sheets_open_url' => env('SHEETS_SPREADSHEET_URL'),
     ],
 ];

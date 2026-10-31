@@ -196,9 +196,47 @@ class Notifier
                     : mb_substr($response->body(), 0, 200);
                 throw new RuntimeException('Google Sheets: '.($reason ?: "responded {$response->status()}"));
             }
+            $this->rememberSheetUrl($data);
 
             return $data;
         });
+    }
+
+    /**
+     * The spreadsheet's own link, for the "Open Google Sheet" button: set by hand
+     * (SHEETS_SPREADSHEET_URL), or as the sheet's script last reported it. When it
+     * isn't known yet, the script is asked once (and not again for 10 minutes if that fails).
+     */
+    public function sheetOpenUrl(): ?string
+    {
+        if (filled($url = config('shop.notify.sheets_open_url'))) {
+            return $url;
+        }
+        if (! $this->sheetEnabled()) {
+            return null;
+        }
+        if ($url = Cache::get('shop.sheet_open_url')) {
+            return $url;
+        }
+        if (Cache::has('shop.sheet_open_url_missing')) {
+            return null;
+        }
+        try {
+            $this->rememberSheetUrl(Http::timeout(8)->get(config('shop.notify.sheets_url'))->json());
+        } catch (Throwable) {
+            // Unreachable for now; the button shows up once the sheet answers.
+        }
+
+        return Cache::get('shop.sheet_open_url') ?? tap(null, fn () => Cache::put('shop.sheet_open_url_missing', true, 600));
+    }
+
+    protected function rememberSheetUrl(mixed $data): void
+    {
+        $url = is_array($data) ? ($data['sheetUrl'] ?? null) : null;
+        if (is_string($url) && str_starts_with($url, 'https://docs.google.com/')) {
+            Cache::forever('shop.sheet_open_url', $url);
+            Cache::forget('shop.sheet_open_url_missing');
+        }
     }
 
     // ---------------- Status for the admin ----------------

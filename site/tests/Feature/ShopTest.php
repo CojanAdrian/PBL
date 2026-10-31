@@ -222,7 +222,7 @@ class ShopTest extends TestCase
         Livewire::test(ManageOrders::class)->callTableAction('delete', $order);
 
         $this->assertSame(0, Order::count());
-        Http::assertSent(fn (Request $r) => $r['action'] === 'delete' && $r['codes'] === ['BED-DEL22']);
+        Http::assertSent(fn (Request $r) => $r->method() === 'POST' && $r['action'] === 'delete' && $r['codes'] === ['BED-DEL22']);
     }
 
     public function test_sync_sends_every_order_to_the_sheet(): void
@@ -236,7 +236,25 @@ class ShopTest extends TestCase
 
         Livewire::test(ManageOrders::class)->callAction('syncSheet')->assertNotified('2 missing orders added');
 
-        Http::assertSent(fn (Request $r) => array_column($r['orders'], 'code') === ['BED-AAAA2', 'BED-AAAA3']);
+        Http::assertSent(fn (Request $r) => $r->method() === 'POST' && array_column($r['orders'], 'code') === ['BED-AAAA2', 'BED-AAAA3']);
+    }
+
+    public function test_the_open_sheet_button_uses_the_link_the_script_reports(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $link = 'https://docs.google.com/spreadsheets/d/abc123/edit';
+
+        // No sheet set up: no button.
+        Livewire::test(ManageOrders::class)->assertActionHidden('openSheet');
+
+        // The script tells the site its spreadsheet's link.
+        config(['shop.notify.sheets_url' => 'https://script.test/exec']);
+        Http::fake(['*' => Http::response(['ok' => true, 'message' => 'ready', 'sheetUrl' => $link])]);
+        Livewire::test(ManageOrders::class)->assertActionVisible('openSheet')->assertActionHasUrl('openSheet', $link);
+
+        // Or it is set by hand.
+        config(['shop.notify.sheets_open_url' => 'https://docs.google.com/spreadsheets/d/manual/edit']);
+        Livewire::test(ManageOrders::class)->assertActionHasUrl('openSheet', 'https://docs.google.com/spreadsheets/d/manual/edit');
     }
 
     public function test_the_admin_pages_render(): void

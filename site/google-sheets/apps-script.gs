@@ -140,5 +140,9 @@ function addIfMissing(sheet, order) {
 }
 
 function reply(data) {
+  // The spreadsheet's own address, for the "Open Google Sheet" button in the admin.
+  try {
+    data.sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  } catch (err) {}
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }

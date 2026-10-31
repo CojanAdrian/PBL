@@ -30,7 +30,14 @@ class ManageOrders extends ManageRecords
     {
         $notifier = app(Notifier::class);
 
+        $sheetUrl = $notifier->sheetOpenUrl();
+
         return [
+            Action::make('openSheet')
+                ->label('Open Google Sheet')
+                ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                ->visible(filled($sheetUrl))
+                ->url($sheetUrl, shouldOpenInNewTab: true),
             Action::make('syncSheet')
                 ->label('Sync all to Google Sheet')
                 ->icon(Heroicon::OutlinedTableCells)

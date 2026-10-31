@@ -20,7 +20,7 @@ The site runs on the **CA.web admin panel** (Laravel 12 + Filament 4) in [site/]
 Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 - **Dashboard**: visitors, page views, orders and order value for the week / month / quarter, latest orders, top flavours, where visitors come from.
-- **Shop → Orders**: every preorder, newest first. Click **View** for the details, **Delete** removes an order here and its row in the Google Sheet. Boxes at the top say whether order emails and the Google Sheet are on and whether the last one worked; **Send test email** and **Sync all to Google Sheet** are next to them. Order status (New, Confirmed, Done, Cancelled) is kept in the Google Sheet.
+- **Shop → Orders**: every preorder, newest first. Click **View** for the details, **Delete** removes an order here and its row in the Google Sheet. Boxes at the top say whether order emails and the Google Sheet are on and whether the last one worked; **Open Google Sheet**, **Send test email** and **Sync all to Google Sheet** are next to them. Order status (New, Confirmed, Done, Cancelled) is kept in the Google Sheet.
 - **Shop → Products**: everything on the menu. Each product is a flavour of one **meat type** in one **pack type** (Texas BBQ · Beef · 100 g pack), or a mix like the taster box. Change prices, weights, names, taglines and descriptions (in every language), heat, colours; drag to reorder; switch **On the website** off to hide a product. The price is for one of it, as sold.
 - **Shop → Meat types**: beef, chicken, … Add more (e.g. pork): name in every language and the pouch colours. Switching a meat off hides all its products. A meat can only be deleted when no product uses it.
 - **Shop → Pack types**: pack, box, … Add more (e.g. sack): name in every language, how it is drawn (pouch, box or sack), and whether it is a **mix** of several flavours (like the taster box). Same on/off and delete rules as meats.
@@ -69,6 +69,7 @@ The existing Railway project (website service + Postgres) is reused. The new sit
    | `ORDER_EMAIL_TO` | *(optional)* who gets order emails. Defaults to `kenny@igtfreight.com` |
    | `BREVO_API_KEY` **or** `RESEND_API_KEY`, and `EMAIL_FROM` | Order emails (same as before) |
    | `SHEETS_WEBHOOK_URL`, `SHEETS_TOKEN` | The Google Sheet (same values as before) |
+   | `SHEETS_SPREADSHEET_URL` | *(optional)* the sheet's own link for the **Open Google Sheet** button. Not needed once the sheet runs the latest script, which sends its link by itself |
    | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | *(optional)* a Telegram message for every order |
 
    The old `DATABASE_URL` and `ADMIN_KEY` variables are not used any more and can be removed.
@@ -105,6 +106,7 @@ Notes:
 - Changes made in the sheet stay in the sheet. To delete an order, use **Delete** in the admin, otherwise **Sync all** would add it back.
 - Need Excel? *File → Download → Microsoft Excel (.xlsx)* in the sheet.
 - After changing the script: *Deploy → Manage deployments → ✏️ → Version: New version* keeps the same URL.
+- The **Open Google Sheet** button on **Shop → Orders** appears once the site knows the sheet's link: the script sends it with every reply (paste the latest script and make a new version), or set `SHEETS_SPREADSHEET_URL`.
 
 ## Telegram notifications (optional)
 
