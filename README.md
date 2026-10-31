@@ -109,6 +109,18 @@ Notes:
 2. Send any message to your new bot, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy the `chat` `id`.
 3. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` on Railway.
 
+## Preview with Docker (like Railway, with Postgres)
+
+Needs Docker Desktop, plus PHP, Composer and Node once to install the packages:
+
+```bash
+cd site
+composer install && npm install && npm run build
+docker compose -f docker/docker-compose.yml up --build
+```
+
+Site: http://localhost:8080 · Admin: http://localhost:8080/admin (`admin@bigeds.local` / `bigeds-admin`). It runs the same setup as Railway's pre-deploy command, and its database starts with one order in the old site's table, to show the import. Stop it with `docker compose -f docker/docker-compose.yml down` (add `-v` to wipe the database).
+
 ## Run it locally
 
 Needs PHP 8.2+ (with `intl`, `pdo_sqlite`, `zip`), Composer and Node 20+.
