@@ -48,9 +48,6 @@ class PackTypeResource extends Resource
                 TextInput::make('name')->required($required)->maxLength(255)->helperText('e.g. Pack, Box, Sack. Shown next to the price.'),
             ]),
             Section::make()->columns(2)->columnSpanFull()->schema([
-                TextInput::make('key')->label('Code')->required()->maxLength(32)->unique(ignoreRecord: true)
-                    ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/')->disabledOn('edit')
-                    ->helperText('Lowercase, e.g. sack.'),
                 Select::make('style')->label('Drawn as')->options(PackType::STYLES)->default('pouch')->required()->native(false),
                 Toggle::make('mix')->label('Several flavours in one (like the taster box)')->inline(false)
                     ->helperText('Its products have no meat or heat, and show all the flavours on the drawing.'),

@@ -49,9 +49,6 @@ class MeatResource extends Resource
                 TextInput::make('name')->required($required)->maxLength(255)->helperText('e.g. Beef. Shown after the flavour: "Texas BBQ Beef".'),
             ]),
             Section::make()->columns(2)->columnSpanFull()->schema([
-                TextInput::make('key')->label('Code')->required()->maxLength(32)->unique(ignoreRecord: true)
-                    ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/')->disabledOn('edit')
-                    ->helperText('Lowercase, e.g. pork. Printed on the pouch drawing ("PREMIUM PORK JERKY").'),
                 Toggle::make('active')->label('On the website')->default(true)->inline(false)
                     ->helperText('Switched off, all its products are hidden.'),
             ]),

@@ -84,11 +84,6 @@ class ProductResource extends Resource
                 TextInput::make('grams')->label('Weight')->numeric()->integer()->minValue(1)->required()->suffix('g')->default(100),
                 Select::make('heat')->options(array_combine(range(1, 5), range(1, 5)))->default(1)->required()
                     ->hidden($isMix)->native(false)->helperText('1 = no heat, 5 = very hot.'),
-                TextInput::make('key')->label('Code')
-                    ->required()->maxLength(64)->unique(ignoreRecord: true)
-                    ->regex('/^[a-z0-9]+(-[a-z0-9]+)*$/')
-                    ->disabledOn('edit')
-                    ->helperText('Lowercase with dashes, e.g. beef-texas-bbq. Used by the website and saved in orders, so it can\'t change later.'),
                 Toggle::make('active')->label('On the website')->default(true)->columnSpanFull(),
             ]),
             Section::make('Colours')->description('Used on the drawing and around the product on the website.')

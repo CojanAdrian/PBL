@@ -105,6 +105,35 @@ class ShopAdminTest extends TestCase
         $this->get(PageResource::getUrl('create'))->assertForbidden();
     }
 
+    public function test_codes_are_made_from_the_names(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $names = fn (string $en, string $ro, array $more = []) => ['trans' => ['en' => ['name' => $en, ...$more], 'ro' => ['name' => $ro, ...$more]]];
+
+        \Livewire\Livewire::test(\App\Filament\Resources\Meats\Pages\CreateMeat::class)
+            ->fillForm($names('Pork', 'Porc'))->call('create')->assertHasNoFormErrors();
+        \Livewire\Livewire::test(\App\Filament\Resources\PackTypes\Pages\CreatePackType::class)
+            ->fillForm([...$names('Sack', 'Sac'), 'style' => 'sack'])->call('create')->assertHasNoFormErrors();
+        $this->assertTrue(Meat::where('key', 'pork')->exists());
+        $this->assertTrue(PackType::where('key', 'sack')->exists());
+
+        $product = fn (string $type) => [
+            ...$names('Texas BBQ', 'Texas BBQ'),
+            'pack_type_id' => PackType::where('key', $type)->value('id'),
+            'meat_id' => Meat::where('key', 'pork')->value('id'),
+            'price' => 150, 'grams' => 100, 'heat' => 2,
+        ];
+        foreach (['pack', 'sack', 'pack'] as $type) {
+            \Livewire\Livewire::test(\App\Filament\Resources\Products\Pages\CreateProduct::class)
+                ->fillForm($product($type))->call('create')->assertHasNoFormErrors();
+        }
+
+        $this->assertSame(
+            ['pork-texas-bbq', 'pork-texas-bbq-sack', 'pork-texas-bbq-2'],
+            Product::where('key', 'like', 'pork-%')->orderBy('id')->pluck('key')->all(),
+        );
+    }
+
     public function test_a_meat_in_use_cannot_be_deleted_from_the_list(): void
     {
         $this->actingAs(User::factory()->admin()->create());

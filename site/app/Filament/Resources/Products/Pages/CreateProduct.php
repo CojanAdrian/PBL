@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Products\Pages;
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Support\Concerns\CreatesTranslatableRecord;
 use App\Models\PackType;
+use App\Models\Product;
+use App\Shop\Codes;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateProduct extends CreateRecord
@@ -20,6 +22,7 @@ class CreateProduct extends CreateRecord
             $data['meat_id'] = null;
             $data['heat'] = 1;
         }
+        $data['key'] = Codes::unique(Product::class, Codes::forProduct($data));
 
         return $data;
     }
