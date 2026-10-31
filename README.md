@@ -73,6 +73,8 @@ The existing Railway project (website service + Postgres) is reused. The new sit
    | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | *(optional)* a Telegram message for every order |
 
    The old `DATABASE_URL` and `ADMIN_KEY` variables are not used any more and can be removed.
+
+   The new site keeps its tables in their own Postgres schema, `bigeds`, so they never clash with other tables already in that database. The old site's `preorders` table (schema `public`) is left as it is.
 4. Deploy. Railway builds the PHP app (Railpack: FrankenPHP, Composer, `npm run build`). The pre-deploy command creates the tables and runs `shop:install`, which adds the languages, the admin user, all texts in English, Romanian and Russian, the products, and copies the old orders. It only ever adds what is missing, so it is safe on every deploy and never overwrites what was changed in the admin.
 5. Open `/admin`, sign in, and check the two boxes on **Shop → Orders**.
 

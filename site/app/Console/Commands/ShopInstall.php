@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Shop\Installer;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class ShopInstall extends Command
@@ -15,6 +16,11 @@ class ShopInstall extends Command
     public function handle(Installer $installer): int
     {
         try {
+            // On Postgres the site's tables live in their own schema (config/database.php).
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $schema = (string) config('database.connections.pgsql.search_path');
+                DB::statement('create schema if not exists '.DB::connection()->getQueryGrammar()->wrap($schema));
+            }
             // One command for Railway's pre-deploy step: no `&&` needed there.
             if (! $this->option('no-migrate')) {
                 $this->call('migrate', ['--force' => true]);

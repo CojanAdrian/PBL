@@ -267,13 +267,15 @@ class Installer
      */
     protected function importOldOrders(): void
     {
-        if (! Schema::hasTable('preorders')) {
+        // On Postgres the old site's table is in the `public` schema, next to ours.
+        $table = DB::connection()->getDriverName() === 'pgsql' ? 'public.preorders' : 'preorders';
+        if (! Schema::hasTable($table)) {
             return;
         }
         $known = Order::pluck('code')->flip();
         $names = Product::with(['text', 'packType', 'meat.text'])->get()->keyBy('key');
         $count = 0;
-        foreach (DB::table('preorders')->orderBy('created_at')->get() as $row) {
+        foreach (DB::table($table)->orderBy('created_at')->get() as $row) {
             if ($known->has($row->code)) {
                 continue;
             }

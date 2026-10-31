@@ -41,7 +41,7 @@ services:
       LOG_CHANNEL: stderr
     # The same steps as Railway's pre-deploy command, then the web server. (PHP's server
     # directly, not `artisan serve`, which hides these environment variables from the site.)
-    command: sh -c "php artisan migrate --force && php artisan shop:install && php artisan storage:link --force && cd public && PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+    command: sh -c "php artisan shop:install && php artisan storage:link --force && cd public && PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 
 volumes:
   db:
