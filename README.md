@@ -50,7 +50,7 @@ The existing Railway project (website service + Postgres) is reused. The new sit
 
 1. Website service → **Settings**:
    - **Root Directory**: `/site` (was `/web-sim`).
-   - **Deploy → Pre-deploy Command**: `php artisan migrate --force && php artisan shop:install`
+   - **Deploy → Pre-deploy Command**: `php artisan shop:install` (it runs the migrations first)
 2. **Volume**: add a volume to the website service, mount path `/app/storage/app/public`. Photos uploaded in the admin are stored there; without a volume they disappear on every deploy.
 3. **Variables** on the website service:
 
