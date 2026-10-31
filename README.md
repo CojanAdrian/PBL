@@ -128,7 +128,7 @@ Site: http://localhost:8080 · Admin: http://localhost:8080/admin (`admin@bigeds
 
 ## Run it locally
 
-Needs PHP 8.2+ (with `intl`, `pdo_sqlite`, `zip`), Composer and Node 20+.
+Needs PHP 8.3+ (with `intl`, `pdo_sqlite`, `zip`), Composer and Node 20+.
 
 ```bash
 cd site
