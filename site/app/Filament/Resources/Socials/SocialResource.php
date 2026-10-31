@@ -25,6 +25,9 @@ use UnitEnum;
 
 class SocialResource extends Resource
 {
+    /** Not used by the Big Ed's site, so it stays out of the menu (the section still works). */
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $model = Social::class;
 
     protected static ?string $disk = 'social';

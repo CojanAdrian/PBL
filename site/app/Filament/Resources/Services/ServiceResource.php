@@ -28,6 +28,9 @@ use UnitEnum;
 
 class ServiceResource extends Resource
 {
+    /** Not used by the Big Ed's site, so it stays out of the menu (the section still works). */
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $model = Service::class;
 
     protected static ?string $disk = 'service';

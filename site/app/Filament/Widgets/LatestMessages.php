@@ -14,6 +14,12 @@ class LatestMessages extends Widget
 
     protected string $view = 'filament.widgets.latest-messages';
 
+    /** The jerky site has no contact form, so the dashboard shows the latest orders instead. */
+    public static function canView(): bool
+    {
+        return false;
+    }
+
     protected function getViewData(): array
     {
         return [

@@ -2,9 +2,9 @@
 
 namespace App\Filament\Support;
 
-use App\Filament\Resources\Inboxes\InboxResource;
-use App\Filament\Resources\News\NewsResource;
-use App\Filament\Resources\Services\ServiceResource;
+use App\Filament\Pages\VisualEditor;
+use App\Filament\Resources\Orders\OrderResource;
+use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -23,9 +23,9 @@ class Shortcuts
     public static function defaults(): array
     {
         return [
-            ['label' => __('Article'), 'icon' => 'pencil-square', 'target' => NewsResource::class.'@create', 'url' => null],
-            ['label' => __('Service'), 'icon' => 'plus', 'target' => ServiceResource::class.'@create', 'url' => null],
-            ['label' => __('Inbox'), 'icon' => 'inbox', 'target' => InboxResource::class.'@index', 'url' => null],
+            ['label' => __('Orders'), 'icon' => 'inbox', 'target' => OrderResource::class.'@index', 'url' => null],
+            ['label' => __('Products'), 'icon' => 'shopping-bag', 'target' => ProductResource::class.'@index', 'url' => null],
+            ['label' => __('Edit site'), 'icon' => 'pencil-square', 'target' => 'custom', 'url' => '/admin/'.VisualEditor::getSlug()],
             ['label' => __('Invite'), 'icon' => 'user-plus', 'target' => UserResource::class.'@index', 'url' => null],
         ];
     }

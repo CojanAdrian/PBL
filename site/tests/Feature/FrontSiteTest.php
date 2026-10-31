@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Mail\ContactFormMail;
-use App\Models\Inbox;
-use Illuminate\Support\Facades\Mail;
+use App\Shop\Installer;
 use Tests\TestCase;
 
 class FrontSiteTest extends TestCase
@@ -14,13 +12,19 @@ class FrontSiteTest extends TestCase
         $this->get('/')->assertRedirect('/en');
     }
 
-    public function test_public_pages_render_in_each_active_language(): void
+    public function test_the_jerky_page_renders_in_each_active_language(): void
     {
-        foreach (['en', 'ro'] as $locale) {
-            foreach (['', '/faq', '/privacy-policy', '/terms', '/services', '/news', '/contact', '/thank-form'] as $path) {
-                $this->get("/{$locale}{$path}")->assertOk();
-            }
-        }
+        app(Installer::class)->run();
+
+        $this->get('/en')->assertOk()->assertSee('Real meat.')->assertSee('id="menu-data"', false)->assertSee('Texas BBQ');
+        $this->get('/ro')->assertOk()->assertSee('Carne adevărată.')->assertSee('Teriyaki cu usturoi');
+    }
+
+    public function test_the_page_lists_every_active_language(): void
+    {
+        $this->get('/en')->assertOk()
+            ->assertSee('hreflang="ro"', false)
+            ->assertSee('href="http://localhost/ro"', false);
     }
 
     public function test_unknown_locale_redirects_home(): void
@@ -28,34 +32,10 @@ class FrontSiteTest extends TestCase
         $this->get('/xx')->assertRedirect('/');
     }
 
-    public function test_unknown_slugs_are_not_found(): void
+    public function test_the_starters_other_pages_are_switched_off(): void
     {
-        $this->get('/en/single-news/missing')->assertNotFound();
-        $this->get('/en/single-services/missing')->assertNotFound();
-    }
-
-    public function test_contact_form_stores_message_and_emails_admin(): void
-    {
-        Mail::fake();
-        config(['app.admin_email' => 'owner@example.com']);
-
-        $this->post('/en/storage-contact', [
-            'name' => 'Ana',
-            'email' => 'ana@example.com',
-            'phone' => '+37360000000',
-            'subject' => 'Quote',
-            'message' => 'Hello!',
-        ])->assertRedirect('/en/thank-form');
-
-        $this->assertDatabaseHas('inboxes', ['email' => 'ana@example.com', 'read_at' => null]);
-        Mail::assertSent(ContactFormMail::class, fn ($mail) => $mail->hasTo('owner@example.com'));
-    }
-
-    public function test_contact_form_validates_input(): void
-    {
-        $this->post('/en/storage-contact', ['email' => 'not-an-email'])
-            ->assertSessionHasErrors(['name', 'email', 'phone', 'subject', 'message']);
-
-        $this->assertSame(0, Inbox::count());
+        foreach (['/faq', '/services', '/news', '/contact', '/terms', '/privacy-policy'] as $path) {
+            $this->get("/en{$path}")->assertNotFound();
+        }
     }
 }

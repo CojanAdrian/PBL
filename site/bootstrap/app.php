@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'setLocale' => \App\Http\Middleware\SetLocale::class,
         ]);
 
+        // Railway (and most hosts) sit behind a proxy that ends HTTPS; trust it so
+        // links, assets and cookies use https.
+        $middleware->trustProxies(at: '*');
+
         // Counts page views on every public page for the dashboard (skips the admin).
         $middleware->appendToGroup('web', \App\Http\Middleware\TrackVisit::class);
 

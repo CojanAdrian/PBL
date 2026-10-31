@@ -22,6 +22,9 @@ use Illuminate\Database\Eloquent\Collection;
 
 class InboxResource extends Resource
 {
+    /** Not used by the Big Ed's site, so it stays out of the menu (the section still works). */
+    protected static bool $shouldRegisterNavigation = false;
+
     /** Every active user can read contact form messages. */
     protected static bool $adminOnly = false;
 

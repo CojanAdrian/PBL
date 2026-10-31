@@ -2,9 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\Inboxes\InboxResource;
+use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Widgets\Concerns\HasPeriod;
-use App\Models\Inbox;
+use App\Models\Order;
 use App\Models\Visit;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +24,12 @@ class Metrics extends Widget
         $traffic = $this->trafficPerDay();
         [$visitors, $visitorsChange] = $this->countWithChange(Visit::query(), fn (Builder $query) => $query->distinct()->count('visitor'));
         [$views, $viewsChange] = $this->countWithChange(Visit::query());
-        [$messages, $messagesChange] = $this->countWithChange(Inbox::query());
+        [$orders, $ordersChange] = $this->countWithChange(Order::query());
+        [$value, $valueChange] = $this->countWithChange(Order::query(), fn (Builder $query) => (int) $query->sum('total_price'));
+        $valuePerDay = Order::where('created_at', '>=', $this->periodStart())->get(['created_at', 'total_price'])
+            ->groupBy(fn (Order $order) => $order->created_at->toDateString())
+            ->map->sum('total_price');
+        $currency = config('shop.currency');
 
         return ['tiles' => [
             [
@@ -38,14 +43,15 @@ class Metrics extends Widget
                 'bars' => $traffic['views'], 'tint' => 'sage', 'url' => null,
             ],
             [
-                'label' => __('Messages'), 'value' => $messages, 'change' => $messagesChange,
-                'caption' => $visitors ? __(':rate% conversion', ['rate' => round($messages / $visitors * 100, 1)]) : __('From the contact form'),
-                'bars' => $this->perDay(Inbox::query()), 'tint' => 'amber', 'url' => InboxResource::getUrl(),
+                'label' => __('Orders'), 'value' => $orders, 'change' => $ordersChange,
+                'caption' => $visitors ? __(':rate% of visitors ordered', ['rate' => round($orders / $visitors * 100, 1)]) : __('Preorders from the website'),
+                'bars' => $this->perDay(Order::query()), 'tint' => 'amber', 'url' => OrderResource::getUrl(),
             ],
             [
-                'label' => __('Unread'), 'value' => Inbox::unread()->count(), 'change' => null,
-                'caption' => __('Need a reply'),
-                'bars' => $this->perDay(Inbox::unread()), 'tint' => 'rose', 'url' => InboxResource::getUrl(),
+                'label' => __('Order value')." ({$currency})", 'value' => $value, 'change' => $valueChange,
+                'caption' => $orders ? __(':avg :currency per order', ['avg' => number_format($value / $orders), 'currency' => $currency]) : __('No orders yet'),
+                'bars' => $this->dates()->map(fn ($date) => (int) ($valuePerDay[$date->toDateString()] ?? 0))->all(),
+                'tint' => 'rose', 'url' => OrderResource::getUrl(),
             ],
         ]];
     }

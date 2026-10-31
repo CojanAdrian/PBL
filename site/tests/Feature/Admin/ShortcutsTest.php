@@ -18,7 +18,7 @@ class ShortcutsTest extends TestCase
         $this->actingAs($admin = User::factory()->admin()->create());
 
         $this->assertSame(
-            ['Article', 'Service', 'Inbox', 'Invite'],
+            ['Orders', 'Products', 'Edit site', 'Invite'],
             array_column(Shortcuts::resolve($admin), 'label'),
         );
     }

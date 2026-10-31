@@ -4,7 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\Devices;
-use App\Filament\Widgets\LatestMessages;
+use App\Filament\Widgets\LatestOrders;
 use App\Filament\Widgets\Metrics;
 use App\Filament\Widgets\RecentVisitors;
 use App\Filament\Widgets\TopLocations;
@@ -30,14 +30,14 @@ class DashboardTest extends TestCase
         $this->get('/admin')->assertOk()->assertSee('Overview')->assertSee('Welcome back, Adrian');
 
         Livewire::test(WebsiteCard::class)->assertSee('Your website')->assertSee('online')->assertSee('Invite');
-        Livewire::test(Metrics::class)->assertSee('Visitors')->assertSee('Page views')->assertSee('Unread');
+        Livewire::test(Metrics::class)->assertSee('Visitors')->assertSee('Page views')->assertSee('Orders');
         Livewire::test(TrafficChart::class, ['pageFilters' => ['period' => '7']])->assertSee('last 7 days');
         Livewire::test(TopLocations::class)->assertSee('Chișinău')->assertSee('Moldova');
         Livewire::test(TopPages::class)->assertSee('/en');
         Livewire::test(TopSources::class)->assertSee('google.com');
         Livewire::test(Devices::class)->assertSee('Mobile')->assertSee('mostly');
         Livewire::test(RecentVisitors::class)->assertDontSee('Visits to your website will show up here.');
-        Livewire::test(LatestMessages::class)->assertSee('View all');
+        Livewire::test(LatestOrders::class)->assertSee('View all');
     }
 
     public function test_widgets_render_without_any_visits(): void
@@ -62,6 +62,6 @@ class DashboardTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        Livewire::test(WebsiteCard::class)->assertSee('Inbox')->assertDontSee('Invite');
+        Livewire::test(WebsiteCard::class)->assertSee('Orders')->assertDontSee('Invite');
     }
 }

@@ -15,11 +15,11 @@ class VisitTrackingTest extends TestCase
     public function test_public_page_views_are_recorded_without_the_ip(): void
     {
         $this->withHeaders(['User-Agent' => $this->browser, 'Referer' => 'https://www.google.com/search?q=x'])
-            ->get('/en/faq')
+            ->get('/en')
             ->assertOk();
 
         $visit = Visit::sole();
-        $this->assertSame('/en/faq', $visit->path);
+        $this->assertSame('/en', $visit->path);
         $this->assertSame('google.com', $visit->referrer);
         $this->assertSame(['mobile', 'Safari', 'iOS'], [$visit->device, $visit->browser, $visit->os]);
         $this->assertSame(32, strlen($visit->visitor));

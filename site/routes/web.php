@@ -1,12 +1,7 @@
 <?php
 
-use App\Http\Controllers\front\ContactFormController;
-use App\Http\Controllers\front\FaqController;
-use App\Http\Controllers\front\FrontNewsController;
 use App\Http\Controllers\front\HomeController;
-use App\Http\Controllers\front\PrivacyController;
-use App\Http\Controllers\front\ServiceFrontController;
-use App\Http\Controllers\front\TermsController;
+use App\Http\Controllers\front\PreorderController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\VisualEditorController;
 use Illuminate\Support\Facades\Route;
@@ -31,19 +26,10 @@ Route::prefix('{locale}')
     ->middleware('setLocale')
     ->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('front.index');
-        Route::get('/faq', [FaqController::class, 'index'])->name('front.faq');
-        Route::get('/privacy-policy', [PrivacyController::class, 'index'])->name('front.privacy');
-        Route::get('/terms', [TermsController::class, 'index'])->name('front.terms');
 
-        Route::get('/services', [ServiceFrontController::class, 'index'])->name('front.service');
-        Route::get('/single-services/{slug}', [ServiceFrontController::class, 'show'])->name('front.single.service');
-
-        Route::get('/news', [FrontNewsController::class, 'index'])->name('front.news');
-        Route::get('/single-news/{slug}', [FrontNewsController::class, 'show'])->name('front.single_news');
-
-        Route::get('/contact', [ContactFormController::class, 'index'])->name('front.contact');
-        Route::post('/storage-contact', [ContactFormController::class, 'store'])
-            ->middleware('throttle:5,1')
-            ->name('front.contact.storage');
-        Route::get('/thank-form', [ContactFormController::class, 'thankForm'])->name('front.contact.thank');
+        // Big Ed's Jerky is one page. The starter's other pages (services, news, contact,
+        // FAQ, terms, privacy) are switched off; their controllers and views are still here.
+        Route::post('/preorder', [PreorderController::class, 'store'])
+            ->middleware('throttle:60,1')
+            ->name('front.preorder');
     });

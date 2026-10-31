@@ -29,6 +29,9 @@ use UnitEnum;
 
 class NewsResource extends Resource
 {
+    /** Not used by the Big Ed's site, so it stays out of the menu (the section still works). */
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $model = News::class;
 
     protected static ?string $disk = 'news';

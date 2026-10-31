@@ -16,6 +16,9 @@ use UnitEnum;
 
 class FaqResource extends Resource
 {
+    /** Not used by the Big Ed's site, so it stays out of the menu (the section still works). */
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $model = Faq::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQuestionMarkCircle;

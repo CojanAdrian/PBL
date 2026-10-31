@@ -36,11 +36,10 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->profile(isSimple: false)
-            ->brandName('CA.web')
-            ->brandLogo(asset('images/calogo-dark.svg'))
-            ->darkModeBrandLogo(asset('images/calogo.png'))
-            ->brandLogoHeight('2rem')
-            ->favicon(asset('images/favicon.svg'))
+            ->brandName("Big Ed's Jerky")
+            ->brandLogo(asset('img/logo.webp'))
+            ->brandLogoHeight('2.6rem')
+            ->favicon(asset('img/favicon.png'))
             ->colors([
                 'primary' => Palette::SYSTEM_BLUE,
                 'gray' => Color::Slate,
@@ -58,6 +57,7 @@ class AdminPanelProvider extends PanelProvider
             ->maxContentWidth(Width::Full)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->navigationGroups([
+                NavigationGroup::make('Shop'),
                 NavigationGroup::make('Content'),
                 NavigationGroup::make('Website'),
                 NavigationGroup::make('Legal & Help'),

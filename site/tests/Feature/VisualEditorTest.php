@@ -22,17 +22,17 @@ class VisualEditorTest extends TestCase
 
     public function test_texts_are_created_on_first_use_with_their_default(): void
     {
-        $this->get('/en')->assertOk()->assertSee('We build websites people love to use');
+        $this->get('/en')->assertOk()->assertSee('Real meat.');
 
-        $content = Content::with('text')->where('key', 'home_title')->sole();
+        $content = Content::with('text')->where('key', 'hero_title_1')->sole();
         $this->assertSame(Page::where('label', 'front.index')->value('id'), $content->page_id);
-        $this->assertSame(['en' => 'We build websites people love to use'], $content->text->pluck('text', 'lang')->all());
+        $this->assertSame(['en' => 'Real meat.'], $content->text->pluck('text', 'lang')->all());
     }
 
     public function test_untranslated_texts_fall_back_to_the_main_language(): void
     {
         $this->get('/en');
-        Content::where('key', 'home_title')->sole()->text()->update(['text' => 'Edited title']);
+        Content::where('key', 'hero_title_1')->sole()->text()->update(['text' => 'Edited title']);
 
         $this->get('/ro')->assertOk()->assertSee('Edited title');
     }
@@ -48,8 +48,8 @@ class VisualEditorTest extends TestCase
         $this->get('/en')->assertDontSee('data-cms-text', false);
 
         $this->get('/en?cms_edit=1')
-            ->assertSee('data-cms-text="home_title"', false)
-            ->assertSee('data-cms-image="home_hero"', false)
+            ->assertSee('data-cms-text="hero_title_1"', false)
+            ->assertSee('data-cms-image="hero_logo"', false)
             ->assertSee('cms-badge', false);
     }
 
@@ -57,10 +57,10 @@ class VisualEditorTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        $this->postJson('/cms/text', ['key' => 'home_title', 'locale' => 'ro', 'text' => 'Titlu nou'])
+        $this->postJson('/cms/text', ['key' => 'hero_title_1', 'locale' => 'ro', 'text' => 'Titlu nou'])
             ->assertOk();
 
-        $this->assertSame('Titlu nou', Content::where('key', 'home_title')->sole()->translation('ro')->text);
+        $this->assertSame('Titlu nou', Content::where('key', 'hero_title_1')->sole()->translation('ro')->text);
         $this->get('/ro')->assertSee('Titlu nou');
     }
 
@@ -77,10 +77,10 @@ class VisualEditorTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        $this->postJson('/cms/text', ['key' => 'home_title', 'locale' => 'en', 'text' => "First line\r\nSecond <line>"])
+        $this->postJson('/cms/text', ['key' => 'hero_title_1', 'locale' => 'en', 'text' => "First line\r\nSecond <line>"])
             ->assertOk();
 
-        $this->assertSame("First line\nSecond <line>", Content::where('key', 'home_title')->sole()->translation('en')->text);
+        $this->assertSame("First line\nSecond <line>", Content::where('key', 'hero_title_1')->sole()->translation('en')->text);
         $this->get('/en')->assertSee('First line<br>Second &lt;line&gt;', false);
     }
 
@@ -89,13 +89,13 @@ class VisualEditorTest extends TestCase
         Storage::fake('image');
         $this->actingAs(User::factory()->admin()->create());
 
-        $first = $this->post('/cms/image', ['key' => 'home_hero', 'image' => UploadedFile::fake()->create('a.jpg', 10, 'image/jpeg')], ['Accept' => 'application/json'])
+        $first = $this->post('/cms/image', ['key' => 'hero_logo', 'image' => UploadedFile::fake()->create('a.jpg', 10, 'image/jpeg')], ['Accept' => 'application/json'])
             ->assertOk()->json('url');
-        $old = Image::where('key', 'home_hero')->sole()->img;
+        $old = Image::where('key', 'hero_logo')->sole()->img;
 
-        $this->post('/cms/image', ['key' => 'home_hero', 'image' => UploadedFile::fake()->create('b.jpg', 10, 'image/jpeg')], ['Accept' => 'application/json'])
+        $this->post('/cms/image', ['key' => 'hero_logo', 'image' => UploadedFile::fake()->create('b.jpg', 10, 'image/jpeg')], ['Accept' => 'application/json'])
             ->assertOk();
-        $new = Image::where('key', 'home_hero')->sole()->img;
+        $new = Image::where('key', 'hero_logo')->sole()->img;
 
         $this->assertNotSame($old, $new);
         Storage::disk('image')->assertMissing($old);
@@ -106,10 +106,10 @@ class VisualEditorTest extends TestCase
 
     public function test_only_admins_can_save(): void
     {
-        $this->postJson('/cms/text', ['key' => 'home_title', 'locale' => 'en', 'text' => 'x'])->assertForbidden();
+        $this->postJson('/cms/text', ['key' => 'hero_title_1', 'locale' => 'en', 'text' => 'x'])->assertForbidden();
 
         $this->actingAs(User::factory()->create())
-            ->postJson('/cms/text', ['key' => 'home_title', 'locale' => 'en', 'text' => 'x'])->assertForbidden();
+            ->postJson('/cms/text', ['key' => 'hero_title_1', 'locale' => 'en', 'text' => 'x'])->assertForbidden();
 
         $this->assertSame(0, Content::count());
     }

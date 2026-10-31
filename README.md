@@ -1,21 +1,37 @@
 # Big Ed's Jerky
 
-Landing page and preorder system for Big Ed's Jerky, premium beef and chicken jerky made in Moldova.
+Website and preorder system for Big Ed's Jerky, premium beef and chicken jerky made in Moldova. English, Romanian and Russian.
 
-Everything lives in [web-sim/](web-sim/): a small Node server that serves the website, takes preorders, and emails them.
-
-## What's where
+The site runs on the **CA.web admin panel** (Laravel 12 + Filament 4) in [site/](site/): one page with the flavours and the order builder, and an admin at `/admin` where Ed sees the orders, changes products and prices, and edits every text and photo on the site.
 
 | Path | What it is |
 | --- | --- |
-| `web-sim/config.json` | **Meats, flavours, sizes and prices.** Edit this to change the menu. |
-| `web-sim/public/` | The website (HTML, CSS, JS, images, fonts) |
-| `web-sim/src/` | The server: preorder API, admin API, email, database setup |
-| `web-sim/test/` | Server tests (`npm test`) |
+| `site/resources/views/front/pages/home.blade.php` | The page (every text is editable from the admin) |
+| `site/public/css`, `site/public/js`, `site/public/img` | The page's styles, the order builder, images |
+| `site/app/Shop/` | Prices and order checks, emails / Telegram / Google Sheet, the starting texts (EN/RO/RU), the installer |
+| `site/app/Filament/Resources/Orders`, `.../Products` | The admin's Shop section |
+| `site/config/shop.php` | Currency, pack sizes, custom sizes on/off, limits, pouch colours |
+| `site/google-sheets/apps-script.gs` | The script that runs in the orders Google Sheet |
+| `site/tests/` | Tests (`php vendor/bin/phpunit --testsuite Feature`) |
+| `web-sim/` | The **old** Node site. Kept until the new one is live, then it can be deleted. |
+
+## The admin (`/admin`)
+
+Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+
+- **Dashboard**: visitors, page views, orders and order value for the week / month / quarter, latest orders, top flavours, where visitors come from.
+- **Shop → Orders**: every preorder, newest first. Click **View** for the details, **Delete** removes an order here and its row in the Google Sheet. Boxes at the top say whether order emails and the Google Sheet are on and whether the last one worked; **Send test email** and **Sync all to Google Sheet** are next to them. Order status (New, Confirmed, Done, Cancelled) is kept in the Google Sheet.
+- **Shop → Products**: the taster box and the beef and chicken packs. Change prices, names, taglines and descriptions (in every language), heat, colours; drag to reorder; switch **On the website** off to hide a product. Prices are for one 100 g pack (or the whole box).
+- **Website → Visual editor**: the real site inside the admin. Click any outlined text to change it (Enter saves), click the hero logo or the story photo to upload a new one. Switch the language at the top to translate. Texts that still need a translation are outlined in amber.
+- **Website → Text blocks**: every text, including the order builder's own (the `shop_…` keys) and the footer contact details (`footer_phone`, `footer_email`, `footer_instagram`, `footer_telegram`; empty ones are hidden). Keep `{placeholders}` like `{name}` in the texts.
+- **Website → Pages**: the page title and description for Google and link previews, per language.
+- **System**: users (invite people), roles, languages.
+
+The starter's other sections (news, services, testimonials, FAQ, terms, privacy, inbox) are hidden from the menu and their pages are switched off, because the jerky site doesn't use them.
 
 ## Prices
 
-Set in `web-sim/config.json`:
+Set in the admin under **Shop → Products**. They start as:
 
 | What | Price |
 | --- | --- |
@@ -23,110 +39,98 @@ Set in `web-sim/config.json`:
 | Chicken, 100 g pack | 70 lei |
 | Taster box (all six flavours, 6 x 50 g = 300 g) | 285 lei |
 
-- `meats[].prices`: the price of a pack for each meat, by size (`"100": 130`).
-- `boxes`: the Taster box: its price, its total weight (`grams`) and its text. It is the first quick start in the order builder.
-- `sizes`: the pack sizes on offer. Only `100` for now.
-- `custom`: custom pack sizes are **switched off** (`"enabled": false`). Set it to `true` to bring the size picker back; a custom pack is then priced from the 100 g price (250 g beef = 325 lei).
-- `currency`: shown next to every price (`lei`).
-
-The server checks and prices every preorder from this same file, so what people see is what they are charged.
-
-## Other things in `config.json`
-
-- `meats`: Beef and Chicken, with the pouch colours for each (beef is black, chicken is brown).
-- `flavours`: one entry per product, e.g. `beef-texas-bbq` and `chicken-texas-bbq`. Each has its `meat`, name, heat level (1 to 5), colours, and the text shown on the site. Right now: Texas BBQ, Garlic Teriyaki and Honey Sriracha, in beef and in chicken.
-- `contact`: phone, email, Instagram and Telegram shown in the footer. Empty ones are hidden.
-- `paymentNote`: the "how do I pay" line shown while ordering.
+Custom pack sizes are switched off (`custom.enabled` in `site/config/shop.php`). Switched on, a custom pack is priced from the 100 g price (250 g beef = 325 lei). The server checks and prices every preorder itself, so what people see is what they are charged.
 
 ## Deploy on Railway
 
-1. Service **Root Directory**: `/web-sim`. Railway runs `npm start`.
-2. Add a **PostgreSQL** database to the project.
-3. On the website service, set these **variables**:
+The existing Railway project (website service + Postgres) is reused. The new site keeps the old orders: on its first deploy it copies them from the old `preorders` table.
+
+1. Website service → **Settings**:
+   - **Root Directory**: `/site` (was `/web-sim`).
+   - **Deploy → Pre-deploy Command**: `php artisan migrate --force && php artisan shop:install`
+2. **Volume**: add a volume to the website service, mount path `/app/storage/app/public`. Photos uploaded in the admin are stored there; without a volume they disappear on every deploy.
+3. **Variables** on the website service:
 
    | Variable | Value |
    | --- | --- |
-   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (reference to the Postgres service) |
-   | `ADMIN_KEY` | A long secret password for Ed's admin page |
-   | `RESEND_API_KEY` **or** `BREVO_API_KEY` | For preorder emails (see below) |
-   | `EMAIL_FROM` | The sender, e.g. `Big Ed's Jerky <orders@yourdomain.com>` |
-   | `ORDER_EMAIL_TO` | *(optional)* who gets the emails. Defaults to `kenny@igtfreight.com` |
-   | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | *(optional)* a Telegram message for every preorder |
-   | `SHEETS_WEBHOOK_URL`, `SHEETS_TOKEN` | *(optional)* copy every order into a Google Sheet, live (see below) |
+   | `APP_KEY` | A key from `php artisan key:generate --show` |
+   | `APP_URL` | The site's address, e.g. `https://bigeds.up.railway.app` |
+   | `APP_ENV` | `production` |
+   | `APP_DEBUG` | `false` |
+   | `DB_CONNECTION` | `pgsql` |
+   | `DB_URL` | `${{Postgres.DATABASE_URL}}` |
+   | `RAILPACK_PHP_EXTENSIONS` | `pdo_pgsql` |
+   | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The first admin's login (only used while there is no user yet) |
+   | `QUEUE_CONNECTION` | `sync` |
+   | `LOG_CHANNEL` | `stderr` |
+   | `ORDER_EMAIL_TO` | *(optional)* who gets order emails. Defaults to `kenny@igtfreight.com` |
+   | `BREVO_API_KEY` **or** `RESEND_API_KEY`, and `EMAIL_FROM` | Order emails (same as before) |
+   | `SHEETS_WEBHOOK_URL`, `SHEETS_TOKEN` | The Google Sheet (same values as before) |
+   | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | *(optional)* a Telegram message for every order |
 
-4. **Settings → Networking → Generate Domain**.
+   The old `DATABASE_URL` and `ADMIN_KEY` variables are not used any more and can be removed.
+4. Deploy. Railway builds the PHP app (Railpack: FrankenPHP, Composer, `npm run build`). The pre-deploy command creates the tables and runs `shop:install`, which adds the languages, the admin user, all texts in English, Romanian and Russian, the products, and copies the old orders. It only ever adds what is missing, so it is safe on every deploy and never overwrites what was changed in the admin.
+5. Open `/admin`, sign in, and check the two boxes on **Shop → Orders**.
 
-The table is created automatically on the first start. Without `DATABASE_URL` the site works, but preorders are switched off.
+## Order emails
 
-## Preorder emails
+Every new preorder is emailed to `ORDER_EMAIL_TO` through Brevo or Resend's web API (Railway blocks normal SMTP on its cheaper plans). Set **one** of them up:
 
-Every new preorder is emailed to `kenny@igtfreight.com` (change it with `ORDER_EMAIL_TO`). The email lists the items, prices, total, the customer's details and a button to open the admin page. Replying goes to the customer if they left an email.
+**Brevo** (free, 300 emails a day, no domain needed): create an account, add and verify a sender address under *Senders, Domains & Dedicated IPs → Senders*, create a key under *SMTP & API → API keys*, then set `BREVO_API_KEY` and `EMAIL_FROM` (e.g. `Big Ed's Jerky <that verified address>`).
 
-Railway blocks normal email (SMTP) on its cheaper plans, so the server uses an email service's web API instead. Pick **one**:
+**Resend** (free, 100 emails a day): verify your own domain, create an API key, set `RESEND_API_KEY` and `EMAIL_FROM` (an address on that domain).
 
-**Brevo** (free, 300 emails a day, no domain needed)
-1. Create an account at brevo.com.
-2. Go to *Senders, Domains & Dedicated IPs → Senders* and add a sender email address you can open (for example `orders@yourdomain.com`, or any mailbox you own). Click the verification link they send.
-3. Go to *SMTP & API → API keys* and create a key.
-4. In Railway set `BREVO_API_KEY` to the key and `EMAIL_FROM` to `Big Ed's Jerky <that verified address>`.
+**Send test email** on **Shop → Orders** sends one right away and shows the exact reason if the service refuses it. If an email fails, the order is still saved.
 
-**Resend** (free, 100 emails a day)
-1. Create an account at resend.com and add and verify your own domain (it needs a few DNS records). Without a verified domain Resend only delivers to the email you signed up with.
-2. Create an API key.
-3. In Railway set `RESEND_API_KEY` and `EMAIL_FROM` (an address on your verified domain).
-
-**Check that it works:** open `/admin`. At the top of the Orders tab a box says whether email is on or off. Press **Send test email**: it sends a message to `ORDER_EMAIL_TO` right away and shows the exact reason if the email service refuses it (wrong key, sender not verified, and so on).
-
-If an email fails, the preorder is still saved, the problem is shown in that box, and it is written to the Railway logs.
+These keys are only for order emails. The admin's own emails (user invitations, password resets) use Laravel's normal mail settings (`MAIL_*`); on Railway's cheaper plans SMTP is blocked, so add users with a password under **System → Users** instead of inviting them.
 
 ## Google Sheets (every order, live)
 
-Every new preorder is added to a Google Sheet automatically, as it comes in: one row per order, with Status **New**. Ed keeps track of orders in the sheet: the Status column has a dropdown (New, Confirmed, Done, Cancelled) and colours itself.
+Every new preorder is added to a Google Sheet as it comes in, with Status **New**. Ed keeps track of orders there: the Status column has a dropdown (New, Confirmed, Done, Cancelled) and colours itself. Deleting an order in the admin deletes its row too.
 
-Setup, about 5 minutes:
+The sheet set up for the old site keeps working as it is: use the same `SHEETS_WEBHOOK_URL` and `SHEETS_TOKEN`. For a new sheet:
 
-1. Create a new Google Sheet (for example "Big Ed's orders"). Under *File → Settings* set the time zone to *(GMT+02:00) Chisinau*.
-2. In the sheet: *Extensions → Apps Script*. Delete what is there, paste the whole of [`web-sim/google-sheets/apps-script.gs`](web-sim/google-sheets/apps-script.gs), and save.
-3. Still in Apps Script: *Project Settings* (gear icon) → *Script properties* → *Add script property*. Name `TOKEN`, value: a long random password you make up. Save.
-4. *Deploy → New deployment*. Type: *Web app*. *Execute as*: **Me**. *Who has access*: **Anyone**. Deploy, allow the permissions Google asks for, and copy the *Web app URL* (it ends in `/exec`).
-5. In Railway, set `SHEETS_WEBHOOK_URL` to that URL and `SHEETS_TOKEN` to the same password as `TOKEN`.
-6. Open `/admin`. The Orders tab shows a "Google Sheets is on" box. Press **Sync all orders** once: every order so far is added to the sheet (an `Orders` tab is created with the headings). From then on new orders arrive by themselves.
+1. Create a Google Sheet. Under *File → Settings* set the time zone to *(GMT+02:00) Chisinau*.
+2. *Extensions → Apps Script*: delete everything in `Code.gs`, paste the whole of [`site/google-sheets/apps-script.gs`](site/google-sheets/apps-script.gs) (it must start with `/**`, not inside `function myFunction() {`), and save.
+3. *Project Settings → Script properties → Add script property*: `TOKEN` = a long random password.
+4. *Deploy → New deployment → Web app*, *Execute as*: **Me**, *Who has access*: **Anyone**. Copy the URL ending in `/exec`.
+5. Set `SHEETS_WEBHOOK_URL` (that URL) and `SHEETS_TOKEN` (the same password) on Railway.
+6. In the admin, **Shop → Orders → Sync all to Google Sheet** adds every order so far (an `Orders` tab is created).
 
 Notes:
-- "Anyone" only means the script's web address accepts requests. The sheet itself stays private, and the script refuses anything without the right `TOKEN`.
-- If an update ever fails (Google down, wrong token), the order is still saved, the reason shows in the box on `/admin`, and **Sync all orders** adds whatever is missing. It only adds orders that are not in the sheet yet; it never changes rows already there, so Ed's statuses and edits are safe.
-- Changes made in the sheet stay in the sheet; they do not flow back to the website.
-- To delete an order, use **Delete** on `/admin`: it removes the order from the website and its row from the sheet. If you only delete the row in the sheet, the order is still on `/admin`, and **Sync all orders** would add it back.
+- **Sync all** only adds orders that aren't in the sheet yet; rows already there are never changed.
+- Changes made in the sheet stay in the sheet. To delete an order, use **Delete** in the admin, otherwise **Sync all** would add it back.
 - Need Excel? *File → Download → Microsoft Excel (.xlsx)* in the sheet.
-- If you change the script later, use *Deploy → Manage deployments → Edit → New version* so the URL stays the same.
-
-## Ed's preorder list
-
-Open `/admin` on the site and enter the `ADMIN_KEY`.
-
-- **Orders**: every preorder, newest first. Statuses are kept in the Google Sheet. **Delete** removes an order here and from the sheet (it asks first).
-- **Stats**: total value, average order, packs, weight, flavour and pack-size breakdowns, pickup vs delivery, and the last 14 days. Cancellations are only marked in the sheet, so these count every order. Switch between all time, 30 days and 7 days.
-
-Only **wrong** keys count towards the lockout (10 wrong keys in 15 minutes). Using the page normally never locks you out.
+- After changing the script: *Deploy → Manage deployments → ✏️ → Version: New version* keeps the same URL.
 
 ## Telegram notifications (optional)
 
 1. In Telegram, talk to **@BotFather**, send `/newbot`, and copy the token.
 2. Send any message to your new bot, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy the `chat` `id`.
-3. Put both in the Railway variables above.
+3. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` on Railway.
 
 ## Run it locally
 
+Needs PHP 8.2+ (with `intl`, `pdo_sqlite`, `zip`), Composer and Node 20+.
+
+```bash
+cd site
+composer install
+npm install && npm run build
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=choose-one php artisan shop:install
+php artisan serve        # http://localhost:8000/en and /admin
+php vendor/bin/phpunit --testsuite Feature
 ```
-cd web-sim
-npm install
-npm start          # http://localhost:3000, preorders need DATABASE_URL
-npm test           # runs against an in-memory database
-```
+
+More about the panel itself (visual editor, analytics, roles, adding sections) is in [site/README.md](site/README.md).
 
 ## Notes
 
-- Name and phone number are required, email is optional.
-- Delivery is the only option for now and there is no address field: Ed arranges the delivery when he calls.
-- The photos are small (512 px) crops of the original product shots, upscaled. Sharper pictures of the jerky would make the site even better: drop them into `web-sim/public/img/` using the same file names.
+- Name and phone number are required, email is optional. Delivery is the only option and there is no address field.
 - A customer can send up to 15 preorders an hour from one connection. Invalid forms never count. A hidden spam-trap field catches bots.
+- The Romanian and Russian texts are a first translation: have a native speaker read them in the Visual editor (switch the language at the top).
+- Russian headings use Oswald, because the headline font (Anton) has no Cyrillic letters.
