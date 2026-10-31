@@ -72,9 +72,12 @@ function boxSVG(box, { mini = false, label = "" } = {}) {
   const aria = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
   const stripes = box.stripes || [];
   const w = 152 / Math.max(1, stripes.length);
+  const name = box.name.toUpperCase();
+  // Long names ("CUTIA DE DEGUSTARE") are squeezed to fit the front of the box.
+  const fit = name.length > 10 ? ' textLength="136" lengthAdjust="spacingAndGlyphs"' : "";
   const text = mini
     ? ""
-    : `<text x="92" y="200" text-anchor="middle" class="pouch__flavour" fill="#efe8e1" font-size="24" letter-spacing="1.5">${esc(box.name.toUpperCase())}</text>
+    : `<text x="92" y="200" text-anchor="middle" class="pouch__flavour" fill="#efe8e1" font-size="${name.length > 10 ? 20 : 24}" letter-spacing="1.5"${fit}>${esc(name)}</text>
        <text x="92" y="266" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9.5" font-weight="700" letter-spacing="1.4">ALL ${stripes.length} FLAVOURS</text>`;
   return `<svg class="pouch pouch--box" viewBox="0 0 200 296" ${aria} focusable="false">
     <path d="M16 60L42 30H190L168 60Z" fill="#3a3330" stroke="rgba(255,255,255,.12)" stroke-width="1.2"/>

@@ -231,7 +231,7 @@ class Installer
             $count++;
         }
         if ($count) {
-            $this->log[] = "Copied {$count} orders from the old site.";
+            $this->log[] = "Copied {$count} ".($count === 1 ? "order" : "orders")." from the old site.";
         }
     }
 

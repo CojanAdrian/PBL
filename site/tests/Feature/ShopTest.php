@@ -121,6 +121,15 @@ class ShopTest extends TestCase
         $this->assertArrayHasKey('date', $errors(['date' => 'garbage']));
     }
 
+    public function test_orders_from_any_language_are_saved_in_english(): void
+    {
+        $this->postJson('/ro/preorder', $this->order(['items' => [['flavour' => 'chicken-honey-sriracha', 'grams' => 100, 'qty' => 1]]]))
+            ->assertCreated();
+
+        $this->assertSame(['1 x 100 g Honey Sriracha Chicken'], Order::sole()->lines());
+        $this->assertSame('ro', Order::sole()->locale);
+    }
+
     public function test_errors_are_in_the_visitors_language(): void
     {
         $this->postJson('/ro/preorder', $this->order(['phone' => '']))

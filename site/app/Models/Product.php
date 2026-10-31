@@ -57,11 +57,20 @@ class Product extends Model
         return app(Cms::class)->plain("meat_{$meat}", config("shop.meats.{$meat}.name", ucfirst($meat)));
     }
 
-    /** "Texas BBQ Beef"; a box keeps its own name. */
+    /**
+     * "Texas BBQ Beef"; a box keeps its own name. With `en`, always English
+     * (that is how orders are saved), whatever the visitor's language.
+     */
     public function fullName(?string $locale = null): string
     {
         $name = $this->translation($locale)?->name ?? $this->key;
+        if ($this->isBox()) {
+            return $name;
+        }
+        $meat = $locale === 'en'
+            ? config("shop.meats.{$this->meat}.name", ucfirst((string) $this->meat))
+            : static::meatName($this->meat);
 
-        return $this->isBox() ? $name : trim($name.' '.static::meatName($this->meat));
+        return trim("{$name} {$meat}");
     }
 }

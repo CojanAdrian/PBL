@@ -1,0 +1,47 @@
+# Local preview of Big Ed's site with Postgres, like on Railway.
+#   cd site && composer install && npm install && npm run build   (once)
+#   docker compose -f docker/docker-compose.yml up --build
+# Site: http://localhost:8080   Admin: http://localhost:8080/admin
+name: bigeds
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: bigeds
+      POSTGRES_USER: bigeds
+      POSTGRES_PASSWORD: bigeds
+    volumes:
+      - db:/var/lib/postgresql/data
+      # A sample order in the old Node site's table, to show the import.
+      - ./old-site-orders.sql:/docker-entrypoint-initdb.d/old-site-orders.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bigeds"]
+      interval: 2s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8000"
+    volumes:
+      - ..:/app
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8080
+      DB_CONNECTION: pgsql
+      DB_URL: postgresql://bigeds:bigeds@db:5432/bigeds
+      ADMIN_EMAIL: admin@bigeds.local
+      ADMIN_PASSWORD: bigeds-admin
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    # The same steps as Railway's pre-deploy command, then the web server. (PHP's server
+    # directly, not `artisan serve`, which hides these environment variables from the site.)
+    command: sh -c "php artisan migrate --force && php artisan shop:install && php artisan storage:link --force && cd public && PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+
+volumes:
+  db:
