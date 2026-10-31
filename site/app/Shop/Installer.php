@@ -63,7 +63,7 @@ class Installer
     protected function admin(): void
     {
         $email = config('app.admin_email');
-        $password = env('ADMIN_PASSWORD');
+        $password = config('app.admin_password');
         if (User::count() > 0) {
             return;
         }

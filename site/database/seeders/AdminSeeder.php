@@ -15,7 +15,7 @@ class AdminSeeder extends Seeder
     public function run(): void
     {
         $email = config('app.admin_email');
-        $password = env('ADMIN_PASSWORD');
+        $password = config('app.admin_password');
 
         if (blank($email) || blank($password)) {
             throw new RuntimeException('Set ADMIN_EMAIL and ADMIN_PASSWORD in your .env file before seeding.');

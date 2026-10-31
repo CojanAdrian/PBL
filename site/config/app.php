@@ -95,6 +95,10 @@ return [
 
     'admin_email' => env('ADMIN_EMAIL'),
 
+    // The first admin's password (shop:install). Read here, not with env() in code:
+    // once the config is cached (as on Railway), env() outside config files is empty.
+    'admin_password' => env('ADMIN_PASSWORD'),
+
     /*
     |--------------------------------------------------------------------------
     | Encryption Key
