@@ -19,6 +19,12 @@ use UnitEnum;
 
 class LangResource extends Resource
 {
+    /** The site is built for English, Romanian and Russian: languages can't be added from the admin. */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = Lang::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;

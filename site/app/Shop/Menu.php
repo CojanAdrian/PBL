@@ -2,31 +2,31 @@
 
 namespace App\Shop;
 
+use App\Models\Meat;
 use App\Models\Product;
 use App\Support\Cms\Cms;
 use Illuminate\Support\Collection;
 
 /**
  * The menu the order builder runs on: active products in the current language,
- * shop settings, and the builder's own texts (from Text blocks).
+ * their meat and pack types, shop settings, and the builder's own texts.
  */
 class Menu
 {
     /** @return Collection<int, Product> */
     public static function products(): Collection
     {
-        return Product::active()->with('text')->orderBy('order_column')->get();
+        return Product::active()->with(['text', 'packType.text', 'meat.text'])->orderBy('order_column')->get();
     }
 
-    /** Price of ONE pack or box. Custom pack sizes are priced from the popular size. */
+    /** Price of ONE item. A custom weight (when switched on) is priced from the product's own weight. */
     public static function linePrice(Product $product, int $grams): int
     {
-        if ($product->isBox()) {
+        if ($product->isMix() || $grams === $product->grams) {
             return $product->price;
         }
-        $popular = (int) config('shop.popular_size');
 
-        return $grams === $popular ? $product->price : (int) round($product->price / $popular * $grams);
+        return (int) round($product->price / $product->grams * $grams);
     }
 
     public static function build(): array
@@ -48,22 +48,28 @@ class Menu
             'tagline' => (string) $p->translation()?->tagline,
             'notes' => (string) $p->translation()?->notes,
             'price' => $p->price,
+            'grams' => $p->grams,
+            'type' => $p->packType->key,
+            'typeName' => $p->packType->name(),
+            'style' => $p->packType->style,
             'accent' => $p->accent,
             'band' => $p->band,
             'bandText' => $p->band_text,
         ];
 
-        $meats = collect(config('shop.meats'))
-            ->filter(fn ($meat, $id) => $products->contains('meat', $id))
-            ->map(fn ($meat, $id) => ['id' => $id, 'name' => Product::meatName($id), 'pouch' => $meat['pouch']])
-            ->values();
+        // Meats in their admin order, only those with something on sale.
+        $meatIds = $products->pluck('meat_id')->filter()->unique();
+        $meats = Meat::with('text')->whereIn('id', $meatIds)->orderBy('order_column')->get()
+            ->map(fn (Meat $m) => [
+                'id' => $m->key,
+                'name' => $m->name(),
+                'pouch' => ['top' => $m->pouch_top, 'bottom' => $m->pouch_bottom, 'cap' => $m->pouch_cap],
+            ])->values();
 
         return [
             'locale' => $locale,
             // How the currency is written in this language (orders are stored in config('shop.currency')).
             'currency' => $texts['currency'],
-            'sizes' => config('shop.sizes'),
-            'popularSize' => config('shop.popular_size'),
             'custom' => config('shop.custom'),
             'limits' => [
                 'maxPacksPerLine' => config('shop.limits.max_packs_per_line'),
@@ -71,9 +77,13 @@ class Menu
                 'maxTotalGrams' => config('shop.limits.max_total_grams'),
             ],
             'paymentNote' => $texts['payment_note'],
+            // The logo printed on the pouch drawings (Images -> site_logo).
+            'logo' => $cms->imageUrl('site_logo', 'img/logo.webp'),
+            // In the admin's Visual editor the builder's texts become click-to-edit.
+            'editing' => $cms->editing(),
             'meats' => $meats,
-            'flavours' => $products->reject->isBox()->map(fn (Product $p) => [...$item($p), 'meat' => $p->meat, 'heat' => $p->heat])->values(),
-            'boxes' => $products->filter->isBox()->map(fn (Product $p) => [...$item($p), 'grams' => $p->grams])->values(),
+            'flavours' => $products->reject->isMix()->map(fn (Product $p) => [...$item($p), 'meat' => $p->meat?->key, 'heat' => $p->heat])->values(),
+            'boxes' => $products->filter->isMix()->map($item)->values(),
             'endpoint' => route('front.preorder', ['locale' => $locale]),
             't' => $texts,
         ];

@@ -20,9 +20,21 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
+use Illuminate\Database\Eloquent\Model;
 
 class ImageResource extends Resource
 {
+    /** Every image is used by the site, so image keys can't be deleted (only replaced). */
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = Image::class;
 
     protected static ?string $disk = 'image';

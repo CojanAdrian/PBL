@@ -31,7 +31,7 @@
     <meta name="keywords" content="{{ $meta->keywords }}">
   @endif
   <meta name="theme-color" content="#0a0908">
-  <link rel="icon" type="image/png" href="{{ asset('img/favicon.png') }}">
+  <link rel="icon" type="image/png" href="{{ $cms->imageUrl('favicon', 'img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
   @foreach ($langs as $lang)
     <link rel="alternate" hreflang="{{ $lang->code }}" href="{{ route('front.index', ['locale' => $lang->code]) }}">
@@ -44,7 +44,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="{{ asset('fonts/anton-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ asset('fonts/manrope-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="{{ asset('img/logo.webp') }}" as="image">
+  <link rel="preload" href="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" as="image">
   <link rel="stylesheet" href="{{ asset('css/base.css') }}">
   <link rel="stylesheet" href="{{ asset('css/site.css') }}">
   <link rel="stylesheet" href="{{ asset('css/builder.css') }}">
@@ -71,7 +71,7 @@
   <div class="preloader" aria-hidden="true">
     <div class="preloader__inner">
       <svg class="preloader__ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" pathLength="100"/></svg>
-      <img src="{{ asset('img/logo.webp') }}" width="96" height="96" alt="">
+      <img @image('site_logo', 'img/logo.webp') width="96" height="96" alt="">
     </div>
   </div>
 
@@ -81,7 +81,7 @@
   <header class="nav" id="nav">
     <div class="nav__bar">
       <a class="nav__brand" href="#top" aria-label="Big Ed's Jerky">
-        <img src="{{ asset('img/logo.webp') }}" width="44" height="44" alt="">
+        <img @image('site_logo', 'img/logo.webp') width="44" height="44" alt="">
         <span>@text('nav_brand', "Big Ed's")</span>
       </a>
       <nav class="nav__links" aria-label="Main">
@@ -122,7 +122,7 @@
     <!-- HERO -->
     <section class="hero" id="top" aria-labelledby="hero-title">
       <canvas class="embers" aria-hidden="true"></canvas>
-      <div class="hero__word" aria-hidden="true">JERKY</div>
+      <div class="hero__word" aria-hidden="true">@text('hero_word', 'JERKY')</div>
       <div class="container hero__grid">
         <div class="hero__copy">
           <p class="eyebrow">@text('hero_eyebrow', 'Beef & chicken jerky · Home-made · Moldova')</p>
@@ -181,10 +181,9 @@
           <div class="story__ingredients" data-reveal>
             <h3>@text('story_ingredients_title', 'What goes in')</h3>
             <ul>
-              @foreach (range(1, 8) as $n)
-                @if (filled($cms->plain("story_ingredient_{$n}")) || $cms->editing())
-                  <li>@text("story_ingredient_{$n}", \App\Shop\Texts::en("story_ingredient_{$n}"))</li>
-                @endif
+              {{-- Admin -> Shop -> Ingredients --}}
+              @foreach (\App\Models\Ingredient::active()->with('text')->orderBy('order_column')->get() as $ingredient)
+                <li>{{ $ingredient->translation()?->name }}</li>
               @endforeach
             </ul>
             <p class="note">@text('story_contains', 'Contains soy.')</p>
@@ -244,7 +243,7 @@
   <footer class="footer">
     <div class="container footer__grid">
       <div class="footer__brand">
-        <img src="{{ asset('img/logo.webp') }}" width="96" height="96" alt="Big Ed's Jerky" loading="lazy">
+        <img @image('site_logo', 'img/logo.webp') width="96" height="96" alt="Big Ed's Jerky" loading="lazy">
         <p>@text('footer_tagline', "Premium beef & chicken jerky.\nMade by hand in Moldova.")</p>
       </div>
       <nav class="footer__nav" aria-label="Footer">

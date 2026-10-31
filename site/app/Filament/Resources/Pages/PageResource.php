@@ -22,6 +22,12 @@ use UnitEnum;
 
 class PageResource extends Resource
 {
+    /** Big Ed's is one page: new pages can't be added from the admin. */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = Page::class;
 
     protected static ?string $disk = 'page';

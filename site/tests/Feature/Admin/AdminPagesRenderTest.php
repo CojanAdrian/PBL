@@ -40,7 +40,8 @@ class AdminPagesRenderTest extends TestCase
         $this->get($resource::getUrl('index'))->assertOk();
 
         if ($resource::hasPage('create')) {
-            $this->get($resource::getUrl('create'))->assertOk();
+            // Some sections can't be added to (pages, languages): their create page is forbidden.
+            $this->get($resource::getUrl('create'))->assertStatus($resource::canCreate() ? 200 : 403);
         }
     }
 }

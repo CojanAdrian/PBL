@@ -1,19 +1,18 @@
 <?php
 
 /*
- * Big Ed's Jerky shop settings. Products and prices are managed in the admin
- * (Shop -> Products); this file holds the things that rarely change.
+ * Big Ed's Jerky shop settings. Meat types, pack types, products, prices and
+ * ingredients are managed in the admin (Shop); this file holds the things
+ * that rarely change.
  */
 return [
 
+    // Saved with every order (how it is written on the site is in Text blocks: shop_currency).
     'currency' => 'lei',
 
-    // Pack sizes on offer, in grams. Product prices are for the popular size.
-    'sizes' => [100],
-    'popular_size' => 100,
-
-    // Custom pack sizes are switched off for now. Switched on, a custom pack is
-    // priced from the product's price for the popular size (250 g = 2.5 x price).
+    // Custom pack sizes are switched off for now. Switched on, customers can pick any
+    // weight for a one-flavour product, priced from its own weight (250 g of a 100 g
+    // product at 130 = 325).
     'custom' => [
         'enabled' => false,
         'min' => 30,
@@ -25,12 +24,6 @@ return [
         'max_packs_per_line' => 20,
         'max_lines' => 25,
         'max_total_grams' => 10000,
-    ],
-
-    // Meats and their pouch colours (the names are translated under Text blocks: meat_beef, meat_chicken).
-    'meats' => [
-        'beef' => ['name' => 'Beef', 'pouch' => ['top' => '#2a2624', 'bottom' => '#0d0b0a', 'cap' => '#0a0908']],
-        'chicken' => ['name' => 'Chicken', 'pouch' => ['top' => '#7b5a3f', 'bottom' => '#4b3424', 'cap' => '#3a281b']],
     ],
 
     // A customer can send this many preorders an hour from one connection (only saved orders count).

@@ -24,6 +24,7 @@ class Texts
         'menu_tagline' => ['en' => "Premium beef & chicken jerky.\nMade in Moldova.", 'ro' => "Jerky premium de vită și de pui.\nFăcut în Moldova.", 'ru' => "Премиальное вяленое мясо из говядины и курицы.\nСделано в Молдове."],
 
         // ---- Hero ----
+        'hero_word' => ['en' => 'JERKY', 'ro' => 'JERKY', 'ru' => 'ДЖЕРКИ'],
         'hero_eyebrow' => ['en' => 'Beef & chicken jerky · Home-made · Moldova', 'ro' => 'Jerky de vită și de pui · Făcut în casă · Moldova', 'ru' => 'Джерки из говядины и курицы · Домашнее · Молдова'],
         'hero_title_1' => ['en' => 'Real meat.', 'ro' => 'Carne adevărată.', 'ru' => 'Настоящее мясо.'],
         'hero_title_2' => ['en' => 'Bold flavor.', 'ro' => 'Gust îndrăzneț.', 'ru' => 'Яркий вкус.'],
@@ -64,14 +65,6 @@ class Texts
             'ru' => "Никакой фабрики. Никаких компромиссов. Только одна кухня, отборная говядина и курица и много терпения. Каждая партия Big Ed's делается вручную дома в Молдове, поэтому в каждой упаковке чувствуется настоящая забота.",
         ],
         'story_ingredients_title' => ['en' => 'What goes in', 'ro' => 'Ce conține', 'ru' => 'Состав'],
-        'story_ingredient_1' => ['en' => 'Beef or chicken', 'ro' => 'Vită sau pui', 'ru' => 'Говядина или курица'],
-        'story_ingredient_2' => ['en' => 'Soy sauce', 'ro' => 'Sos de soia', 'ru' => 'Соевый соус'],
-        'story_ingredient_3' => ['en' => 'Garlic', 'ro' => 'Usturoi', 'ru' => 'Чеснок'],
-        'story_ingredient_4' => ['en' => 'Honey', 'ro' => 'Miere', 'ru' => 'Мёд'],
-        'story_ingredient_5' => ['en' => 'Sriracha', 'ro' => 'Sriracha', 'ru' => 'Шрирача'],
-        'story_ingredient_6' => ['en' => 'Brown sugar', 'ro' => 'Zahăr brun', 'ru' => 'Коричневый сахар'],
-        'story_ingredient_7' => ['en' => 'Spices', 'ro' => 'Condimente', 'ru' => 'Специи'],
-        'story_ingredient_8' => ['en' => 'Natural smoke flavour', 'ro' => 'Aromă naturală de fum', 'ru' => 'Натуральный аромат дыма'],
         'story_contains' => ['en' => 'Contains soy.', 'ro' => 'Conține soia.', 'ru' => 'Содержит сою.'],
         'story_photo_alt' => ['en' => 'Dark, spice-crusted strips of jerky on a wooden board next to cloves of garlic', 'ro' => 'Fâșii de jerky cu crustă de condimente pe un fund de lemn, lângă căței de usturoi', 'ru' => 'Полоски вяленого мяса в специях на деревянной доске рядом с зубчиками чеснока'],
         'story_caption' => ['en' => 'Real beef. Bold flavor.', 'ro' => 'Carne adevărată. Gust îndrăzneț.', 'ru' => 'Настоящее мясо. Яркий вкус.'],
@@ -99,10 +92,6 @@ class Texts
         'footer_email' => ['en' => '', 'ro' => '', 'ru' => ''],
         'footer_instagram' => ['en' => '', 'ro' => '', 'ru' => ''],
         'footer_telegram' => ['en' => '', 'ro' => '', 'ru' => ''],
-
-        // ---- Meats ----
-        'meat_beef' => ['en' => 'Beef', 'ro' => 'Vită', 'ru' => 'Говядина'],
-        'meat_chicken' => ['en' => 'Chicken', 'ro' => 'Pui', 'ru' => 'Курица'],
 
         // ---- Order builder (JavaScript) ----
         'shop_currency' => ['en' => 'lei', 'ro' => 'lei', 'ru' => 'лей'],

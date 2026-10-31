@@ -22,9 +22,21 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
+use Illuminate\Database\Eloquent\Model;
 
 class ContentResource extends Resource
 {
+    /** Every text is used by the site, so text keys can't be deleted (only edited). */
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = Content::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedLanguage;

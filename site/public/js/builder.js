@@ -3,7 +3,7 @@
 import { $, $$, esc, reduce, store, toast, scrollToEl, arrowNav } from "./ui.js";
 import { pouchSVG, heatBars, fmtGrams } from "./pouch.js";
 import { burst } from "./embers.js";
-import { t, th, packs } from "./i18n.js";
+import { t, th, tx, packs } from "./i18n.js";
 
 const STORE_KEY = "bigeds.box.v2";
 const MAX_TRAY = 18;
@@ -24,21 +24,21 @@ export function initBuilder(cfg, mount) {
   const products = [...boxes, ...cfg.flavours];
   const byId = new Map(products.map((f) => [f.id, f]));
   const cur = cfg.currency;
-  // Price of one pack or box. A product's price is for the popular size; a custom
-  // size (when switched on) is priced from it. Boxes have a fixed price.
+  // Price of one item. Every product has its own weight and price; a custom weight
+  // (when switched on) is priced from them. Boxes have a fixed price.
   const price = (id, grams) => {
     const f = byId.get(id);
     if (!f) return 0;
-    if (f.box || grams === cfg.popularSize) return f.price;
-    return Math.round((f.price / cfg.popularSize) * grams);
+    if (f.box || grams === f.grams) return f.price;
+    return Math.round((f.price / f.grams) * grams);
   };
   const clampQty = (n) => Math.max(1, Math.min(cfg.limits.maxPacksPerLine, n));
   const customOn = Boolean(cfg.custom) && cfg.custom.enabled !== false;
   const { min: CMIN, max: CMAX, step: CSTEP } = cfg.custom || {};
   // The size picker only shows when there is something to pick.
-  const pickSize = customOn || cfg.sizes.length > 1;
+  const pickSize = customOn;
   const validGrams = (f, g) =>
-    Number.isInteger(g) && (f.box ? g === f.grams : cfg.sizes.includes(g) || (customOn && g >= CMIN && g <= CMAX && g % CSTEP === 0));
+    Number.isInteger(g) && (g === f.grams || (!f.box && customOn && g >= CMIN && g <= CMAX && g % CSTEP === 0));
   const qtyText = (l) => (byId.get(l.flavour)?.box ? t("qty_box", { n: l.qty }) : `${l.qty} × ${l.grams} g`);
   const num = (n) => Number(n).toLocaleString("en-US");
 
@@ -59,7 +59,7 @@ export function initBuilder(cfg, mount) {
       if (!saved) return;
       state.lines = (saved.lines || [])
         .filter((l) => byId.has(l.flavour) && validGrams(byId.get(l.flavour), l.grams))
-        .map((l) => ({ flavour: l.flavour, grams: l.grams, qty: clampQty(Number(l.qty) || 1), custom: customOn && !byId.get(l.flavour).box && (!cfg.sizes.includes(l.grams) || Boolean(l.custom)) }));
+        .map((l) => ({ flavour: l.flavour, grams: l.grams, qty: clampQty(Number(l.qty) || 1), custom: customOn && !byId.get(l.flavour).box && l.grams !== byId.get(l.flavour).grams }));
       Object.assign(state.d, { name: "", phone: "", email: "", note: "" }, saved.d || {});
       state.d.delivery = "delivery";
       state.d.address = "";
@@ -88,7 +88,10 @@ export function initBuilder(cfg, mount) {
   }
 
   // ---------- Skeleton ----------
-  // Flavours grouped by meat (beef, chicken), in config order.
+  const weights = [...new Set(cfg.flavours.map((f) => f.grams))];
+  const sameGrams = weights.length === 1 ? weights[0] : 0;
+
+  // Flavours grouped by meat (beef, chicken, …), in the admin's order.
   const meats = cfg.meats || [];
   const groups = [
     { title: boxes.length > 1 ? t("group_boxes") : "", flavours: boxes },
@@ -99,8 +102,10 @@ export function initBuilder(cfg, mount) {
   const presets = [
     ...boxes.map((b) => ({ id: b.id, title: b.name, desc: b.tagline, lines: [{ flavour: b.id, grams: b.grams, qty: 1 }] })),
     ...meats.map((m) => {
-      const lines = cfg.flavours.filter((f) => f.meat === m.id).map((f) => ({ flavour: f.id, grams: cfg.popularSize, qty: 1 }));
-      return { id: m.id, title: t("lineup_title", { meat: m.name }), desc: t("lineup_desc", { count: lines.length, g: cfg.popularSize }), lines };
+      // Every flavour of this meat, in its first pack type (e.g. all the 100 g beef packs).
+      const ofMeat = cfg.flavours.filter((f) => f.meat === m.id);
+      const lines = ofMeat.filter((f) => f.type === ofMeat[0]?.type).map((f) => ({ flavour: f.id, grams: f.grams, qty: 1 }));
+      return { id: m.id, title: t("lineup_title", { meat: m.name }), desc: t("lineup_desc", { count: lines.length, g: ofMeat[0]?.grams }), lines };
     }),
   ]
     .filter((p) => p.lines.length > 0)
@@ -117,11 +122,11 @@ export function initBuilder(cfg, mount) {
     <section class="panel" data-panel="1" aria-labelledby="p1-title">
       <div class="panel__head">
         <h3 class="panel__title" id="p1-title" tabindex="-1">${th("p1_title")}</h3>
-        <p class="panel__sub">${th("p1_sub")} ${pickSize ? th("p1_sub_sizes") : th("p1_sub_fixed", { g: cfg.popularSize })}</p>
+        <p class="panel__sub">${th("p1_sub")} ${pickSize ? th("p1_sub_sizes") : sameGrams ? th("p1_sub_fixed", { g: sameGrams }) : ""}</p>
         <ol class="howto" aria-label="${esc(t("howto"))}">
-          <li><b>1</b><span>${th("howto_1", { add: `<strong>${th("add")}</strong>` })}</span></li>
+          <li><b>1</b><span>${th("howto_1", { add: `<strong>${tx("add")}</strong>` })}</span></li>
           <li><b>2</b><span>${pickSize ? th("howto_2_sizes") : th("howto_2")}</span></li>
-          <li><b>3</b><span>${th("howto_3", { continue: `<strong>${th("continue")}</strong>` })}</span></li>
+          <li><b>3</b><span>${th("howto_3", { continue: `<strong>${tx("continue")}</strong>` })}</span></li>
         </ol>
       </div>
       <p class="lbl">${th("quick_starts")}</p>
@@ -228,13 +233,13 @@ export function initBuilder(cfg, mount) {
   function rowHTML(f) {
     const id = esc(f.id);
     const unit = f.box ? t("unit_box") : t("unit_pack");
-    const each = `${num(price(f.id, f.box ? f.grams : cfg.popularSize))} ${cur} · ${f.box ? t("per_box") : `${cfg.popularSize} g`}`;
+    const each = `${num(f.price)} ${cur} · ${f.typeName} ${f.grams} g`;
     const sizeField = f.box || !pickSize
       ? ""
       : `<div class="field field--size">
               <span class="lbl" id="sz-${id}">${th("pack_size")}</span>
               <div class="seg" role="radiogroup" aria-labelledby="sz-${id}">
-                ${cfg.sizes.map((s) => `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="${s}">${s} g${s === cfg.popularSize ? `<span class="pop">${th("popular")}</span>` : ""}</button>`).join("")}
+                <button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="${f.grams}">${f.grams} g</button>
                 ${customOn ? `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-act="size" data-g="custom">${th("custom")}</button>` : ""}
               </div>
             </div>`;
@@ -522,7 +527,7 @@ export function initBuilder(cfg, mount) {
       line.qty = clampQty(line.qty + 1);
       if (announce) toast(t("toast_another", { name: f.fullName, qty: qtyText(line) }));
     } else {
-      state.lines.push({ flavour: id, grams: f.box ? f.grams : cfg.popularSize, qty: 1, custom: false });
+      state.lines.push({ flavour: id, grams: f.grams, qty: 1, custom: false });
       if (announce) toast(t("toast_added", { name: f.fullName }));
     }
     commit();

@@ -3,8 +3,11 @@
 namespace App\Shop;
 
 use App\Models\Content;
+use App\Models\Ingredient;
 use App\Models\Lang;
+use App\Models\Meat;
 use App\Models\Order;
+use App\Models\PackType;
 use App\Models\Page;
 use App\Models\Product;
 use App\Models\Role;
@@ -16,8 +19,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Sets up Big Ed's starting data: languages, roles, the first admin, the home
- * page's SEO, every site text (EN/RO/RU), the products, and the orders from the
- * old Node site. Safe to run again and again: it only adds what is missing and
+ * page's SEO, every site text (EN/RO/RU), the meat and pack types, the
+ * ingredients, the products, and the orders from the old Node site. Safe to run again and again: it only adds what is missing and
  * never changes anything that was edited in the admin.
  */
 class Installer
@@ -33,6 +36,9 @@ class Installer
             $this->admin();
             $home = $this->homePage();
             $this->texts($home);
+            $this->meats();
+            $this->packTypes();
+            $this->ingredients();
             $this->products();
         });
         $this->importOldOrders();
@@ -116,6 +122,68 @@ class Installer
         }
     }
 
+    /** Beef and chicken, with their pouch colours. */
+    protected function meats(): void
+    {
+        if (Meat::count() > 0) {
+            return;
+        }
+        $meats = [
+            'beef' => [['#2a2624', '#0d0b0a', '#0a0908'], ['en' => 'Beef', 'ro' => 'Vită', 'ru' => 'Говядина']],
+            'chicken' => [['#7b5a3f', '#4b3424', '#3a281b'], ['en' => 'Chicken', 'ro' => 'Pui', 'ru' => 'Курица']],
+        ];
+        foreach ($meats as $key => [$colours, $names]) {
+            $meat = Meat::create(['key' => $key, 'pouch_top' => $colours[0], 'pouch_bottom' => $colours[1], 'pouch_cap' => $colours[2]]);
+            $this->translate($meat, $names);
+        }
+        $this->log[] = 'Added the meat types: Beef, Chicken.';
+    }
+
+    /** A 100 g pack (one flavour) and a box (several flavours). */
+    protected function packTypes(): void
+    {
+        if (PackType::count() > 0) {
+            return;
+        }
+        $pack = PackType::create(['key' => 'pack', 'style' => 'pouch', 'mix' => false]);
+        $this->translate($pack, ['en' => 'Pack', 'ro' => 'Pachet', 'ru' => 'Упаковка']);
+        $box = PackType::create(['key' => 'box', 'style' => 'box', 'mix' => true]);
+        $this->translate($box, ['en' => 'Box', 'ro' => 'Cutie', 'ru' => 'Коробка']);
+        $this->log[] = 'Added the pack types: Pack, Box.';
+    }
+
+    /** "What goes in", in the story section. */
+    protected function ingredients(): void
+    {
+        if (Ingredient::count() > 0) {
+            return;
+        }
+        $items = [
+            ['en' => 'Beef or chicken', 'ro' => 'Vită sau pui', 'ru' => 'Говядина или курица'],
+            ['en' => 'Soy sauce', 'ro' => 'Sos de soia', 'ru' => 'Соевый соус'],
+            ['en' => 'Garlic', 'ro' => 'Usturoi', 'ru' => 'Чеснок'],
+            ['en' => 'Honey', 'ro' => 'Miere', 'ru' => 'Мёд'],
+            ['en' => 'Sriracha', 'ro' => 'Sriracha', 'ru' => 'Шрирача'],
+            ['en' => 'Brown sugar', 'ro' => 'Zahăr brun', 'ru' => 'Коричневый сахар'],
+            ['en' => 'Spices', 'ro' => 'Condimente', 'ru' => 'Специи'],
+            ['en' => 'Natural smoke flavour', 'ro' => 'Aromă naturală de fum', 'ru' => 'Натуральный аромат дыма'],
+        ];
+        foreach ($items as $names) {
+            $this->translate(Ingredient::create([]), $names);
+        }
+        $this->log[] = 'Added the ingredients.';
+    }
+
+    /** One `name` translation per language that exists. */
+    protected function translate($model, array $names): void
+    {
+        foreach ($this->langCodes() as $code) {
+            if (isset($names[$code])) {
+                $model->text()->create(['lang' => $code, 'name' => $names[$code]]);
+            }
+        }
+    }
+
     protected function products(): void
     {
         if (Product::count() > 0) {
@@ -155,28 +223,37 @@ class Installer
         ];
         $prices = ['beef' => 130, 'chicken' => 70];
         $codes = $this->langCodes();
+        $pack = PackType::where('key', 'pack')->first() ?? PackType::where('mix', false)->orderBy('order_column')->first();
+        $boxType = PackType::where('key', 'box')->first() ?? PackType::where('mix', true)->orderBy('order_column')->first();
 
-        $box = Product::create(['key' => 'taster-box', 'type' => Product::BOX, 'price' => 285, 'grams' => 300, 'heat' => 1, 'accent' => '#ff6a2b', 'band' => '#ff6a2b', 'band_text' => '#ffffff']);
-        $boxText = [
-            'en' => ['Taster box', 'All six flavours in one box.', 'A 50 g pack of every flavour, beef and chicken. The easiest way to find your favourite.'],
-            'ro' => ['Cutia de degustare', 'Toate cele șase arome într-o cutie.', 'Câte un pachet de 50 g din fiecare aromă, de vită și de pui. Cel mai simplu mod să-ți găsești preferata.'],
-            'ru' => ['Дегустационная коробка', 'Все шесть вкусов в одной коробке.', 'По упаковке 50 г каждого вкуса — говядина и курица. Самый простой способ найти любимый.'],
-        ];
-        foreach ($codes as $code) {
-            if (isset($boxText[$code])) {
-                $box->text()->create(['lang' => $code, 'name' => $boxText[$code][0], 'tagline' => $boxText[$code][1], 'notes' => $boxText[$code][2]]);
+        if ($boxType) {
+            $box = Product::create(['key' => 'taster-box', 'pack_type_id' => $boxType->id, 'price' => 285, 'grams' => 300, 'heat' => 1, 'accent' => '#ff6a2b', 'band' => '#ff6a2b', 'band_text' => '#ffffff']);
+            $boxText = [
+                'en' => ['Taster box', 'All six flavours in one box.', 'A 50 g pack of every flavour, beef and chicken. The easiest way to find your favourite.'],
+                'ro' => ['Cutia de degustare', 'Toate cele șase arome într-o cutie.', 'Câte un pachet de 50 g din fiecare aromă, de vită și de pui. Cel mai simplu mod să-ți găsești preferata.'],
+                'ru' => ['Дегустационная коробка', 'Все шесть вкусов в одной коробке.', 'По упаковке 50 г каждого вкуса — говядина и курица. Самый простой способ найти любимый.'],
+            ];
+            foreach ($codes as $code) {
+                if (isset($boxText[$code])) {
+                    $box->text()->create(['lang' => $code, 'name' => $boxText[$code][0], 'tagline' => $boxText[$code][1], 'notes' => $boxText[$code][2]]);
+                }
             }
         }
 
-        foreach (['beef', 'chicken'] as $meat) {
+        foreach (['beef', 'chicken'] as $meatKey) {
+            $meat = Meat::where('key', $meatKey)->first();
+            if (! $meat || ! $pack) {
+                continue;
+            }
             foreach ($flavours as $id => $f) {
                 $product = Product::create([
-                    'key' => "{$meat}-{$id}", 'type' => Product::PACK, 'meat' => $meat, 'price' => $prices[$meat],
+                    'key' => "{$meatKey}-{$id}", 'pack_type_id' => $pack->id, 'meat_id' => $meat->id,
+                    'price' => $prices[$meatKey], 'grams' => 100,
                     'heat' => $f['heat'], 'accent' => $f['accent'], 'band' => $f['band'], 'band_text' => $f['band_text'],
                 ]);
                 foreach ($codes as $code) {
                     if (isset($f[$code])) {
-                        $product->text()->create(['lang' => $code, 'name' => $f[$code][0], 'tagline' => $f[$code][1], 'notes' => $f['notes'][$meat][$code]]);
+                        $product->text()->create(['lang' => $code, 'name' => $f[$code][0], 'tagline' => $f[$code][1], 'notes' => $f['notes'][$meatKey][$code]]);
                     }
                 }
             }
@@ -194,7 +271,7 @@ class Installer
             return;
         }
         $known = Order::pluck('code')->flip();
-        $names = Product::with('text')->get()->keyBy('key');
+        $names = Product::with(['text', 'packType', 'meat.text'])->get()->keyBy('key');
         $count = 0;
         foreach (DB::table('preorders')->orderBy('created_at')->get() as $row) {
             if ($known->has($row->code)) {
@@ -209,7 +286,7 @@ class Installer
                     'grams' => (int) ($i['grams'] ?? 0),
                     'qty' => (int) ($i['qty'] ?? 0),
                     'price' => (int) ($i['price'] ?? 0),
-                    'box' => $product?->isBox() ?? false,
+                    'box' => $product?->isMix() ?? false,
                 ];
             }, json_decode($row->items, true) ?: []);
             $order = new Order([

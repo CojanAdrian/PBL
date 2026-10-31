@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Products\Pages;
 
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Support\Concerns\EditsTranslatableRecord;
-use App\Models\Product;
+use App\Models\PackType;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -16,10 +16,10 @@ class EditProduct extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if (($data['type'] ?? null) === Product::BOX) {
-            $data['meat'] = null;
-        } else {
-            $data['grams'] = null;
+        // A mix (like a box) has no meat or heat of its own.
+        if (PackType::find($data['pack_type_id'] ?? null)?->mix) {
+            $data['meat_id'] = null;
+            $data['heat'] = 1;
         }
 
         return $data;

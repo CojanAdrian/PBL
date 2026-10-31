@@ -56,7 +56,7 @@ export function initFlavours(cfg) {
   };
 
   function apply(flavour) {
-    pouchEl.innerHTML = pouchSVG(flavour, { grams: 100, label: t("pouch", { name: flavour.fullName }) });
+    pouchEl.innerHTML = pouchSVG(flavour, { label: t("pouch", { name: flavour.fullName }) });
     tagEl.textContent = flavour.tagline;
     nameEl.textContent = flavour.fullName;
     notesEl.textContent = flavour.notes;

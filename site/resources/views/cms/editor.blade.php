@@ -10,7 +10,8 @@
 
     [data-cms-text]:hover { outline-color: rgb(37 99 235 / .65); background-color: rgb(37 99 235 / .06); }
     [data-cms-text][data-cms-missing] { outline-color: rgb(245 158 11 / .8); }
-    [data-cms-text].cms-active { outline: 2px solid #2563eb; background-color: rgb(37 99 235 / .08); white-space: pre-wrap; }
+    /* While editing, show the text as it is stored: a heading styled in CAPITALS would otherwise be saved in capitals. */
+    [data-cms-text].cms-active { outline: 2px solid #2563eb; background-color: rgb(37 99 235 / .08); white-space: pre-wrap; text-transform: none; }
     [data-cms-text].cms-saving { opacity: .55; }
 
     [data-cms-image] {
@@ -116,11 +117,12 @@
         const startEditing = (el) => {
             if (el.isContentEditable) return;
 
+            // Read the text once cms-active has switched off any text-transform (see the style above).
+            el.classList.add('cms-active');
             el.dataset.cmsOriginal = el.innerText;
 
             try { el.contentEditable = 'plaintext-only'; } catch { el.contentEditable = 'true'; }
 
-            el.classList.add('cms-active');
             el.focus();
 
             const range = document.createRange();

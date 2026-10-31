@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Products\Pages;
 
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Support\Concerns\CreatesTranslatableRecord;
-use App\Models\Product;
+use App\Models\PackType;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateProduct extends CreateRecord
@@ -15,12 +15,10 @@ class CreateProduct extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // A box has no meat or heat; a pack has no box weight.
-        if (($data['type'] ?? null) === Product::BOX) {
-            $data['meat'] = null;
+        // A mix (like a box) has no meat or heat of its own.
+        if (PackType::find($data['pack_type_id'] ?? null)?->mix) {
+            $data['meat_id'] = null;
             $data['heat'] = 1;
-        } else {
-            $data['grams'] = null;
         }
 
         return $data;

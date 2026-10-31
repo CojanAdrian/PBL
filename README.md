@@ -10,7 +10,7 @@ The site runs on the **CA.web admin panel** (Laravel 12 + Filament 4) in [site/]
 | `site/public/css`, `site/public/js`, `site/public/img` | The page's styles, the order builder, images |
 | `site/app/Shop/` | Prices and order checks, emails / Telegram / Google Sheet, the starting texts (EN/RO/RU), the installer |
 | `site/app/Filament/Resources/Orders`, `.../Products` | The admin's Shop section |
-| `site/config/shop.php` | Currency, pack sizes, custom sizes on/off, limits, pouch colours |
+| `site/config/shop.php` | Currency, custom sizes on/off, order limits, notification keys |
 | `site/google-sheets/apps-script.gs` | The script that runs in the orders Google Sheet |
 | `site/tests/` | Tests (`php vendor/bin/phpunit --testsuite Feature`) |
 | `web-sim/` | The **old** Node site. Kept until the new one is live, then it can be deleted. |
@@ -21,11 +21,14 @@ Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 - **Dashboard**: visitors, page views, orders and order value for the week / month / quarter, latest orders, top flavours, where visitors come from.
 - **Shop → Orders**: every preorder, newest first. Click **View** for the details, **Delete** removes an order here and its row in the Google Sheet. Boxes at the top say whether order emails and the Google Sheet are on and whether the last one worked; **Send test email** and **Sync all to Google Sheet** are next to them. Order status (New, Confirmed, Done, Cancelled) is kept in the Google Sheet.
-- **Shop → Products**: the taster box and the beef and chicken packs. Change prices, names, taglines and descriptions (in every language), heat, colours; drag to reorder; switch **On the website** off to hide a product. Prices are for one 100 g pack (or the whole box).
-- **Website → Visual editor**: the real site inside the admin. Click any outlined text to change it (Enter saves), click the hero logo or the story photo to upload a new one. Switch the language at the top to translate. Texts that still need a translation are outlined in amber.
-- **Website → Text blocks**: every text, including the order builder's own (the `shop_…` keys) and the footer contact details (`footer_phone`, `footer_email`, `footer_instagram`, `footer_telegram`; empty ones are hidden). Keep `{placeholders}` like `{name}` in the texts.
+- **Shop → Products**: everything on the menu. Each product is a flavour of one **meat type** in one **pack type** (Texas BBQ · Beef · 100 g pack), or a mix like the taster box. Change prices, weights, names, taglines and descriptions (in every language), heat, colours; drag to reorder; switch **On the website** off to hide a product. The price is for one of it, as sold.
+- **Shop → Meat types**: beef, chicken, … Add more (e.g. pork): name in every language and the pouch colours. Switching a meat off hides all its products. A meat can only be deleted when no product uses it.
+- **Shop → Pack types**: pack, box, … Add more (e.g. sack): name in every language, how it is drawn (pouch, box or sack), and whether it is a **mix** of several flavours (like the taster box). Same on/off and delete rules as meats.
+- **Shop → Ingredients**: the "What goes in" list in the story. Add, delete, reorder, translate.
+- **Website → Visual editor**: the real site inside the admin. Click any outlined text to change it (Enter saves), including the order section's texts. Click a logo (header, footer, hero) or the story photo to upload a new one. Switch the language at the top to translate. Texts that still need a translation are outlined in amber. Product names and descriptions are changed under **Shop → Products**, the ingredients under **Shop → Ingredients**.
+- **Website → Text blocks**: every text, including the order builder's own (the `shop_…` keys) and the footer contact details (`footer_phone`, `footer_email`, `footer_instagram`, `footer_telegram`; empty ones are hidden). Keep `{placeholders}` like `{name}` in the texts (texts with placeholders are edited here, not in the Visual editor). Texts and images can't be deleted, only changed; the favicon is the `favicon` image.
 - **Website → Pages**: the page title and description for Google and link previews, per language.
-- **System**: users (invite people), roles, languages.
+- **System**: users (invite people), roles, languages (English, Romanian and Russian; switch one off to hide it, new ones can't be added). New pages can't be added either: the site is one page.
 
 The starter's other sections (news, services, testimonials, FAQ, terms, privacy, inbox) are hidden from the menu and their pages are switched off, because the jerky site doesn't use them.
 
@@ -39,7 +42,7 @@ Set in the admin under **Shop → Products**. They start as:
 | Chicken, 100 g pack | 70 lei |
 | Taster box (all six flavours, 6 x 50 g = 300 g) | 285 lei |
 
-Custom pack sizes are switched off (`custom.enabled` in `site/config/shop.php`). Switched on, a custom pack is priced from the 100 g price (250 g beef = 325 lei). The server checks and prices every preorder itself, so what people see is what they are charged.
+Custom weights are switched off (`custom.enabled` in `site/config/shop.php`). Switched on, customers can pick any weight of a one-flavour product, priced from its own weight and price (250 g of a 100 g / 130 lei product = 325 lei). The server checks and prices every preorder itself, so what people see is what they are charged.
 
 ## Deploy on Railway
 

@@ -95,7 +95,8 @@ class PreorderValidator
             'grams' => $i['grams'],
             'qty' => $i['qty'],
             'price' => Menu::linePrice($i['product'], $i['grams']),
-            'box' => $i['product']->isBox(),
+            // A mix (like the taster box) is listed without its weight: "1 x Taster box".
+            'box' => $i['product']->isMix(),
         ], $items);
 
         return [
@@ -117,13 +118,14 @@ class PreorderValidator
         ];
     }
 
+    /** A product's own weight, or (when custom sizes are on) any allowed weight of a one-flavour product. */
     public static function allowedGrams(Product $product, int $grams): bool
     {
-        if ($product->isBox()) {
-            return $grams === $product->grams;
-        }
-        if (in_array($grams, config('shop.sizes'), true)) {
+        if ($grams === $product->grams) {
             return true;
+        }
+        if ($product->isMix()) {
+            return false;
         }
         $custom = config('shop.custom');
 
