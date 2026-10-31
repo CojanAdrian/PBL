@@ -1,0 +1,868 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+@source '../../../../app/Providers/Filament/**/*';
+
+/*
+|--------------------------------------------------------------------------
+| CA.web admin theme: "liquid glass"
+|--------------------------------------------------------------------------
+| A soft color wallpaper sits behind everything; panels are frosted glass
+| with a light-catching edge. Toolbar and sidebar float above the page.
+| Glass recipe lives in the tokens below; .ca-* classes are used by the
+| dashboard widgets in resources/views/filament/widgets.
+*/
+
+:root {
+    --ca-ink: #0b0f19;
+    --ca-radius: 28px;
+    --ca-hair: rgb(15 23 42 / 0.07);
+    --ca-blur: blur(28px) saturate(180%);
+
+    --ca-glass: linear-gradient(135deg, rgb(255 255 255 / 0.68), rgb(255 255 255 / 0.42));
+    --ca-glass-strong: rgb(255 255 255 / 0.78);
+    --ca-glass-soft: rgb(255 255 255 / 0.55);
+    --ca-glass-hover: rgb(255 255 255 / 0.7);
+    --ca-edge: linear-gradient(140deg, rgb(255 255 255 / 1), rgb(255 255 255 / 0.3) 30%, rgb(255 255 255 / 0.08) 60%, rgb(255 255 255 / 0.8));
+    --ca-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 1px 2px rgb(15 23 42 / 0.04), 0 18px 40px -18px rgb(15 23 42 / 0.22);
+    --ca-shadow-pop: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 0 0 0.5px rgb(15 23 42 / 0.06), 0 24px 60px -16px rgb(15 23 42 / 0.3);
+
+    --ca-wallpaper:
+        radial-gradient(44rem 34rem at 95% -6%, rgb(56 189 248 / 0.55), transparent 70%),
+        radial-gradient(38rem 30rem at 72% 108%, rgb(251 146 60 / 0.42), transparent 70%),
+        radial-gradient(42rem 34rem at -8% 92%, rgb(74 222 128 / 0.28), transparent 70%),
+        radial-gradient(36rem 28rem at 24% -10%, rgb(167 139 250 / 0.32), transparent 70%);
+    --ca-wallpaper-base: #eef1f6;
+}
+
+:root.dark {
+    --ca-ink: #f8fafc;
+    --ca-hair: rgb(255 255 255 / 0.08);
+
+    --ca-glass: linear-gradient(135deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.035));
+    --ca-glass-strong: rgb(24 27 36 / 0.82);
+    --ca-glass-soft: rgb(255 255 255 / 0.06);
+    --ca-glass-hover: rgb(255 255 255 / 0.1);
+    --ca-edge: linear-gradient(140deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.07) 30%, rgb(255 255 255 / 0.02) 60%, rgb(255 255 255 / 0.18));
+    --ca-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 50px -24px rgb(0 0 0 / 0.7);
+    --ca-shadow-pop: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 30px 70px -20px rgb(0 0 0 / 0.8);
+
+    --ca-wallpaper:
+        radial-gradient(44rem 34rem at 95% -6%, rgb(14 165 233 / 0.32), transparent 70%),
+        radial-gradient(38rem 30rem at 72% 108%, rgb(234 88 12 / 0.24), transparent 70%),
+        radial-gradient(42rem 34rem at -8% 92%, rgb(22 163 74 / 0.16), transparent 70%),
+        radial-gradient(36rem 28rem at 24% -10%, rgb(124 58 237 / 0.24), transparent 70%);
+    --ca-wallpaper-base: #07090f;
+}
+
+/* ---------- Wallpaper ---------- */
+
+.fi-body,
+.fi-simple-layout {
+    background-color: var(--ca-wallpaper-base);
+    background-image: var(--ca-wallpaper);
+    background-attachment: fixed;
+    @apply text-[14px] text-gray-950 dark:text-white;
+}
+
+/* ---------- Glass surfaces ---------- */
+
+/*
+| The frosted layer lives on ::before. Putting backdrop-filter on the panel
+| itself would make it the containing block for fixed-position children,
+| which pushes dropdowns and popovers off-screen.
+*/
+.ca-glass,
+.fi-section:not(.fi-section-not-contained),
+.fi-ta-ctn,
+.fi-simple-main,
+.fi-modal-window,
+.fi-topbar {
+    --ca-surface: var(--ca-glass);
+    position: relative;
+    background: transparent;
+    border-radius: var(--ca-radius);
+    box-shadow: var(--ca-shadow);
+}
+
+.ca-glass::before,
+.fi-section:not(.fi-section-not-contained)::before,
+.fi-ta-ctn::before,
+.fi-simple-main::before,
+.fi-modal-window::before,
+.fi-topbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--ca-surface);
+    backdrop-filter: var(--ca-blur);
+    pointer-events: none;
+}
+
+/* Light-catching rim */
+.ca-glass::after,
+.fi-section:not(.fi-section-not-contained)::after,
+.fi-ta-ctn::after,
+.fi-simple-main::after,
+.fi-modal-window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--ca-edge);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.fi-section .fi-section:not(.fi-section-not-contained) {
+    --ca-radius: 20px;
+    --ca-surface: var(--ca-glass-soft);
+    box-shadow: none;
+}
+
+.fi-modal-window {
+    --ca-surface: var(--ca-glass-strong);
+}
+
+.fi-dropdown-panel,
+.fi-global-search-results-ctn {
+    background: var(--ca-glass-strong);
+}
+
+/* ---------- Floating toolbar ---------- */
+
+.fi-body {
+    --topbar-height: 5rem;
+}
+
+.fi-topbar-ctn {
+    @apply px-4 pt-4;
+}
+
+.fi-topbar {
+    --ca-radius: 9999px;
+    min-height: calc(var(--topbar-height) - 1rem);
+    @apply px-4 ring-0;
+}
+
+.fi-topbar .fi-global-search-field .fi-input-wrp {
+    @apply rounded-full;
+}
+
+/* ---------- Floating sidebar ---------- */
+
+/* Phones and tablets: a floating glass drawer */
+.fi-sidebar {
+    @apply bg-transparent shadow-none ring-0 dark:bg-transparent;
+    padding: 0.75rem;
+}
+
+.fi-sidebar.fi-sidebar-open {
+    @apply shadow-none ring-0;
+}
+
+.fi-sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0.75rem;
+    z-index: -1;
+    border-radius: var(--ca-radius);
+    background: var(--ca-glass-strong);
+    backdrop-filter: var(--ca-blur);
+    box-shadow: var(--ca-shadow-pop);
+}
+
+.fi-sidebar-close-overlay {
+    @apply bg-gray-950/20 backdrop-blur-sm dark:bg-black/50;
+}
+
+@media (min-width: 1024px) {
+    .fi-sidebar {
+        padding: 1rem 0 1rem 1rem;
+    }
+
+    .fi-sidebar::before {
+        inset: 1rem 0 1rem 1rem;
+        background: var(--ca-glass);
+        box-shadow: var(--ca-shadow);
+    }
+
+    .fi-main {
+        @apply px-12;
+    }
+
+    /* Collapsed to icons */
+    .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav {
+        @apply items-center px-0;
+    }
+
+    .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-group-items {
+        @apply items-center;
+    }
+
+    .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-item-btn {
+        @apply size-11 justify-center p-0;
+    }
+}
+
+@media (max-width: 1023px) {
+    .fi-main {
+        @apply px-4;
+    }
+
+    .fi-topbar-ctn {
+        @apply px-3 pt-3;
+    }
+
+    .ca-card {
+        @apply p-6;
+    }
+
+    .ca-number {
+        font-size: 2.25rem;
+    }
+}
+
+.fi-main {
+    @apply pb-12;
+}
+
+.fi-sidebar-nav {
+    @apply gap-y-6 px-4 py-6;
+}
+
+/* ---------- Breathing room inside containers ---------- */
+
+.fi-section:not(.fi-section-not-contained) > .fi-section-header {
+    @apply px-7 py-5;
+}
+
+.fi-section:not(.fi-section-not-contained) > .fi-section-content-ctn > .fi-section-content {
+    @apply p-7;
+}
+
+.fi-ta-header-toolbar {
+    @apply px-6 py-4;
+}
+
+.fi-ta-header-cell:first-child,
+.fi-ta-cell:first-child {
+    @apply ps-7;
+}
+
+.fi-ta-header-cell:last-child,
+.fi-ta-cell:last-child {
+    @apply pe-7;
+}
+
+.fi-ta-header-cell {
+    @apply py-4;
+}
+
+.fi-pagination {
+    @apply px-7 py-4;
+}
+
+.fi-modal-window .fi-modal-header,
+.fi-modal-window .fi-modal-content,
+.fi-modal-window .fi-modal-footer {
+    @apply px-8;
+}
+
+.fi-simple-main {
+    @apply px-10 py-12;
+}
+
+.fi-sidebar-group-label {
+    @apply text-[12px] font-medium text-gray-400 dark:text-gray-500;
+}
+
+.fi-sidebar-item-btn {
+    @apply gap-x-3 rounded-full px-3 py-2 transition duration-150;
+}
+
+.fi-sidebar-item-btn:hover {
+    background: var(--ca-glass-soft);
+}
+
+.fi-sidebar-item-btn > .fi-icon {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+.fi-sidebar-item-label {
+    @apply text-[14px] font-medium text-gray-700 dark:text-gray-300;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    @apply bg-white dark:bg-white/12;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 6px 16px -6px rgb(15 23 42 / 0.18);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item.fi-active .fi-sidebar-item-label {
+    @apply text-gray-950 dark:text-white;
+}
+
+/* ---------- Page header ---------- */
+
+.fi-header-heading {
+    @apply text-[2.5rem] leading-none font-light tracking-[-0.04em];
+}
+
+.fi-header-subheading {
+    @apply text-[14px] text-gray-500 dark:text-gray-400;
+}
+
+.fi-breadcrumbs {
+    @apply text-[12px];
+}
+
+/* ---------- Sections & tables ---------- */
+
+.fi-section-header-heading {
+    @apply text-[15px] font-semibold;
+}
+
+.fi-section-header-description {
+    @apply text-[13px] text-gray-500 dark:text-gray-400;
+}
+
+.fi-section-content-ctn,
+.fi-ta-ctn,
+.fi-ta-ctn * {
+    border-color: var(--ca-hair) !important;
+}
+
+.fi-ta-table thead tr,
+.fi-ta-table thead th,
+.fi-ta-header-cell {
+    background: transparent !important;
+}
+
+.fi-ta-header-cell {
+    @apply text-[12px] font-medium text-gray-500 dark:text-gray-400;
+}
+
+.fi-ta-row {
+    @apply transition-colors duration-150;
+}
+
+.fi-ta-row:hover {
+    background: var(--ca-glass-soft);
+}
+
+.fi-wi-chart .fi-wi-chart-grid-color {
+    @apply text-gray-950/5 dark:text-white/5;
+}
+
+.fi-wi-chart .fi-wi-chart-text-color {
+    @apply text-gray-400 dark:text-gray-500;
+}
+
+/* ---------- Controls ---------- */
+
+.fi-btn {
+    @apply rounded-full px-4 text-[13px] font-semibold;
+}
+
+.fi-btn.fi-color-primary:not(.fi-outlined):not(.fi-link) {
+    background: var(--ca-ink);
+    @apply text-white dark:text-gray-950;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 8px 20px -8px rgb(15 23 42 / 0.5);
+}
+
+.fi-btn.fi-color-primary:not(.fi-outlined):not(.fi-link) .fi-icon {
+    @apply text-white dark:text-gray-950;
+}
+
+.fi-btn.fi-color-primary:not(.fi-outlined):not(.fi-link):hover {
+    @apply opacity-90;
+}
+
+.fi-btn.fi-color-gray:not(.fi-link) {
+    background: var(--ca-glass-strong);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 0 0 0.5px var(--ca-hair), 0 2px 6px -2px rgb(15 23 42 / 0.1);
+}
+
+.fi-input-wrp {
+    @apply rounded-2xl ring-0;
+    background: var(--ca-glass-strong);
+    box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.04), 0 0 0 1px var(--ca-hair);
+}
+
+.fi-input-wrp:focus-within {
+    box-shadow: 0 0 0 1px var(--primary-500), 0 0 0 4px color-mix(in oklab, var(--primary-500) 20%, transparent);
+}
+
+.fi-tabs {
+    @apply rounded-full p-1 ring-0;
+    background: var(--ca-glass-soft);
+    box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.05), 0 0 0 1px var(--ca-hair);
+}
+
+.fi-tabs-item {
+    @apply rounded-full px-4 py-1.5 text-[13px] font-medium;
+}
+
+.fi-tabs-item.fi-active {
+    background: var(--ca-ink);
+    @apply text-white dark:text-gray-950;
+}
+
+.fi-tabs-item.fi-active .fi-tabs-item-label,
+.fi-tabs-item.fi-active .fi-icon {
+    @apply text-white dark:text-gray-950;
+}
+
+.fi-badge {
+    @apply rounded-full;
+}
+
+/* ---------- Menus, modals, search ---------- */
+
+.fi-dropdown-panel,
+.fi-global-search-results-ctn {
+    @apply rounded-[22px] ring-0;
+    backdrop-filter: var(--ca-blur);
+    box-shadow: var(--ca-shadow-pop);
+}
+
+.fi-dropdown-list {
+    @apply p-1.5;
+}
+
+.fi-dropdown-list-item {
+    @apply rounded-xl;
+}
+
+.fi-dropdown-list-item:hover {
+    background: var(--ca-glass-hover);
+}
+
+.fi-modal-window {
+    --ca-radius: 32px;
+    box-shadow: var(--ca-shadow-pop);
+}
+
+.fi-modal-close-overlay {
+    @apply bg-gray-950/15 backdrop-blur-sm dark:bg-black/40;
+}
+
+/* ---------- Sign-in ---------- */
+
+.fi-simple-main {
+    --ca-radius: 32px;
+}
+
+/* ---------- Dashboard ---------- */
+
+.ca-hero {
+    @apply mb-2 flex flex-wrap items-end justify-between gap-6;
+}
+
+.ca-eyebrow {
+    @apply flex items-center gap-2 text-[13px] text-gray-500 dark:text-gray-400;
+}
+
+.ca-display {
+    margin-top: 0.75rem;
+    font-size: clamp(2.75rem, 5vw, 4.5rem);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    color: var(--ca-ink);
+}
+
+.ca-hero-sub {
+    @apply mt-3 text-[15px] text-gray-500 dark:text-gray-400;
+}
+
+.ca-segmented {
+    @apply inline-flex gap-1 rounded-full p-1;
+    background: var(--ca-glass);
+    backdrop-filter: var(--ca-blur);
+    box-shadow: var(--ca-shadow);
+}
+
+.ca-segment {
+    @apply rounded-full px-5 py-2 text-[13px] font-semibold text-gray-600 transition duration-200 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white;
+}
+
+.ca-segment-active,
+.ca-segment-active:hover {
+    background: var(--ca-ink);
+    @apply text-white dark:text-gray-950;
+    box-shadow: 0 6px 16px -6px rgb(15 23 42 / 0.5);
+}
+
+.ca-card {
+    @apply p-7;
+}
+
+.ca-label {
+    @apply text-[13px] font-medium text-gray-500 dark:text-gray-400;
+}
+
+.ca-title {
+    @apply text-[16px] font-semibold text-gray-950 dark:text-white;
+}
+
+.ca-muted {
+    @apply text-[13px] text-gray-500 dark:text-gray-400;
+}
+
+.ca-number {
+    font-size: 2.75rem;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ca-ink);
+}
+
+.ca-number-dim {
+    @apply text-gray-400 dark:text-gray-500;
+}
+
+.ca-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold text-gray-700 dark:text-gray-200;
+    background: var(--ca-glass-strong);
+    box-shadow: 0 0 0 1px var(--ca-hair);
+}
+
+.ca-chip-success {
+    @apply text-emerald-700 dark:text-emerald-300;
+}
+
+.ca-chip-danger {
+    @apply text-rose-700 dark:text-rose-300;
+}
+
+.ca-live-dot {
+    @apply relative inline-flex size-1.5 rounded-full bg-emerald-500;
+}
+
+.ca-live-dot::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-emerald-500;
+    animation: ca-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ca-ping {
+    75%,
+    100% {
+        transform: scale(2.6);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ca-live-dot::before {
+        animation: none;
+    }
+}
+
+/* Round glass action buttons (website card) */
+.ca-action {
+    @apply flex flex-col items-center gap-2;
+}
+
+.ca-action-icon {
+    @apply grid size-12 place-items-center rounded-full text-gray-800 transition duration-200 dark:text-gray-100;
+    background: var(--ca-glass-strong);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 0 0 1px var(--ca-hair), 0 6px 14px -6px rgb(15 23 42 / 0.2);
+}
+
+.ca-action:hover .ca-action-icon {
+    background: var(--ca-ink);
+    @apply scale-105 text-white dark:text-gray-950;
+}
+
+.ca-action-label {
+    @apply text-[12px] font-medium text-gray-600 dark:text-gray-300;
+}
+
+/* Tints */
+.ca-tint-blue { --tint: 37 99 235; }
+.ca-tint-rose { --tint: 225 29 72; }
+.ca-tint-sage { --tint: 22 163 74; }
+.ca-tint-amber { --tint: 234 138 8; }
+
+/* Metric tiles: glass tinted like frosted colored cards */
+.ca-tile {
+    @apply flex min-h-56 flex-col transition duration-300;
+    background: radial-gradient(120% 90% at 0% 0%, rgb(var(--tint) / 0.2), transparent 60%);
+}
+
+.dark .ca-tile {
+    background: radial-gradient(120% 90% at 0% 0%, rgb(var(--tint) / 0.24), transparent 60%);
+}
+
+.ca-tile:hover {
+    box-shadow: var(--ca-shadow-pop);
+}
+
+.ca-ticks {
+    @apply flex h-14 items-end gap-[2px];
+}
+
+.ca-ticks > span {
+    @apply min-w-px flex-1 rounded-full;
+    background: rgb(var(--tint) / 0.18);
+}
+
+.ca-ticks > .ca-tick-on {
+    background: rgb(var(--tint) / 0.85);
+}
+
+/* Lists */
+.ca-pill-btn {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-gray-800 transition dark:text-gray-100;
+    background: var(--ca-glass-strong);
+    box-shadow: 0 0 0 1px var(--ca-hair);
+}
+
+.ca-pill-btn:hover {
+    background: var(--ca-ink);
+    @apply text-white dark:text-gray-950;
+}
+
+.ca-row {
+    @apply flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors duration-150;
+}
+
+.ca-row:hover {
+    background: var(--ca-glass-soft);
+}
+
+.ca-avatar {
+    @apply grid size-10 shrink-0 place-items-center rounded-full text-[12px] font-bold;
+    background: linear-gradient(135deg, hsl(var(--hue) 85% 88%), hsl(calc(var(--hue) + 40) 80% 78%));
+    color: hsl(var(--hue) 50% 25%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+.dark .ca-avatar {
+    background: linear-gradient(135deg, hsl(var(--hue) 45% 35%), hsl(calc(var(--hue) + 40) 45% 25%));
+    color: hsl(var(--hue) 80% 88%);
+}
+
+/* ---------- Scrollbars ---------- */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(120 120 128 / 0.3) transparent;
+}
+
+/* Ranked lists (locations, pages, sources, devices) */
+.ca-rank {
+    @apply relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2;
+}
+
+.ca-rank-bar {
+    @apply absolute inset-y-0 start-0 rounded-xl transition-[width] duration-500;
+    background: linear-gradient(90deg, rgb(37 99 235 / 0.14), rgb(56 189 248 / 0.1));
+}
+
+.dark .ca-rank-bar {
+    background: linear-gradient(90deg, rgb(59 130 246 / 0.26), rgb(56 189 248 / 0.12));
+}
+
+.ca-flag {
+    @apply h-3.5 w-[18px] shrink-0 rounded-[3px] object-cover;
+    box-shadow: 0 0 0 0.5px rgb(15 23 42 / 0.15);
+}
+
+.ca-flag-lg {
+    @apply grid size-10 shrink-0 place-items-center overflow-hidden rounded-full;
+    background: var(--ca-glass-strong);
+    box-shadow: 0 0 0 1px var(--ca-hair);
+}
+
+.ca-flag-lg > img {
+    @apply size-full object-cover;
+}
+
+.ca-action-icon-ghost {
+    @apply text-gray-500 dark:text-gray-400;
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px dashed rgb(120 120 128 / 0.35);
+}
+
+@media (max-width: 639px) {
+    .ca-tile {
+        @apply min-h-0 p-5;
+    }
+
+    .ca-tile .ca-number {
+        font-size: 1.85rem;
+    }
+
+    .ca-tile .ca-number {
+        @apply mt-4;
+    }
+
+    .ca-tile .ca-ticks {
+        @apply h-10;
+    }
+
+    .ca-display {
+        font-size: 3rem;
+    }
+}
+
+/* Slim sidebar scrollbar that stays inside the glass panel */
+.fi-sidebar-nav {
+    margin-inline-end: 0.375rem;
+    scrollbar-gutter: stable;
+}
+
+@supports selector(::-webkit-scrollbar) {
+    .fi-sidebar-nav {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+    }
+
+    .fi-sidebar-nav::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .fi-sidebar-nav::-webkit-scrollbar-track {
+        background: transparent;
+        margin-block: 1.25rem;
+    }
+
+    .fi-sidebar-nav::-webkit-scrollbar-thumb {
+        border-radius: 9999px;
+        background: rgb(120 120 128 / 0.25);
+    }
+
+    .fi-sidebar-nav:hover::-webkit-scrollbar-thumb {
+        background: rgb(120 120 128 / 0.45);
+    }
+}
+
+/* ---------- Visual editor ---------- */
+
+.ca-editor {
+    @apply flex flex-col gap-4;
+}
+
+.ca-editor-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-3;
+}
+
+.ca-editor-pages {
+    @apply max-w-full overflow-x-auto;
+    scrollbar-width: none;
+}
+
+.ca-editor-pages .ca-segment {
+    @apply shrink-0 whitespace-nowrap px-4;
+}
+
+.ca-editor-controls {
+    @apply flex flex-wrap items-center gap-3;
+}
+
+.ca-segment-icon {
+    @apply px-3;
+}
+
+.ca-pill-btn-on {
+    background: var(--ca-ink);
+    @apply text-white dark:text-gray-950;
+}
+
+.ca-browser {
+    @apply mx-auto flex w-full flex-col overflow-hidden transition-[max-width] duration-300;
+    --ca-radius: 22px;
+    max-width: 100%;
+}
+
+.ca-browser-tablet {
+    max-width: 820px;
+}
+
+.ca-browser-mobile {
+    max-width: 400px;
+}
+
+.ca-browser-bar {
+    @apply flex items-center gap-3 px-4 py-2.5;
+    border-bottom: 1px solid var(--ca-hair);
+}
+
+.ca-browser-dots {
+    @apply flex shrink-0 gap-1.5;
+}
+
+.ca-browser-dots > i {
+    @apply size-3 rounded-full;
+    background: #ff5f57;
+}
+
+.ca-browser-dots > i:nth-child(2) {
+    background: #febc2e;
+}
+
+.ca-browser-dots > i:nth-child(3) {
+    background: #28c840;
+}
+
+.ca-browser-url {
+    @apply mx-auto flex min-w-0 max-w-md flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1 text-[12px] text-gray-500 dark:text-gray-400;
+    background: var(--ca-glass-soft);
+    box-shadow: inset 0 0 0 1px var(--ca-hair);
+}
+
+.ca-browser-actions {
+    @apply flex shrink-0 items-center gap-1 text-gray-500 dark:text-gray-400;
+}
+
+.ca-browser-actions > * {
+    @apply grid size-8 place-items-center rounded-full transition hover:text-gray-950 dark:hover:text-white;
+}
+
+.ca-browser-actions > *:hover {
+    background: var(--ca-glass-soft);
+}
+
+.ca-browser-viewport {
+    @apply relative bg-white;
+    height: calc(100dvh - 19rem);
+    min-height: 32rem;
+}
+
+.ca-browser-viewport > iframe {
+    @apply block size-full border-0;
+}
+
+.ca-browser-loading {
+    @apply absolute inset-0 grid place-items-center text-gray-400;
+    background: var(--ca-glass-strong);
+}
+
+.ca-editor-hint {
+    @apply flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-gray-500 dark:text-gray-400;
+}
+
+.ca-editor-hint > span {
+    @apply inline-flex items-center gap-2;
+}
+
+.ca-hint-swatch {
+    @apply inline-block h-3 w-5 rounded;
+    outline: 1.5px dashed rgb(37 99 235 / 0.7);
+}
+
+.ca-hint-missing {
+    outline-color: rgb(245 158 11 / 0.85);
+}
