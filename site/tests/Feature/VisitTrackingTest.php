@@ -45,6 +45,19 @@ class VisitTrackingTest extends TestCase
         $this->assertSame(['RO', 'Romania', 'Iași'], [Visit::sole()->country_code, Visit::sole()->country, Visit::sole()->city]);
     }
 
+    public function test_behind_railways_proxies_the_real_visitor_is_located(): void
+    {
+        Http::fake(['ip-api.com/*' => Http::response(['status' => 'success', 'countryCode' => 'MD', 'city' => 'Chisinau'])]);
+
+        // As on Railway: visitor -> CDN server (Bucharest) -> Railway edge -> the app.
+        $this->withHeaders(['User-Agent' => $this->browser, 'X-Forwarded-For' => '89.28.1.2, 151.101.2.3', 'X-Forwarded-Proto' => 'https'])
+            ->withServerVariables(['REMOTE_ADDR' => '10.250.1.1'])
+            ->get('/en');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'ip-api.com/json/89.28.1.2'));
+        $this->assertSame(['MD', 'Chisinau'], [Visit::sole()->country_code, Visit::sole()->city]);
+    }
+
     public function test_pages_added_outside_the_language_routes_are_counted_too(): void
     {
         Route::middleware('web')->get('/landing-page', fn () => response('<h1>Landing</h1>')->header('Content-Type', 'text/html'));
