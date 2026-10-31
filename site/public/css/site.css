@@ -1385,3 +1385,23 @@ html:lang(ro) .ftab__name {
     font-size: 1.4rem;
   }
 }
+
+/* Romanian capitals carry marks above (Ă Â Î) and below (Ș Ț). With the tight
+   headline spacing they would run into the line above or below, so Romanian
+   headlines get a little more room between lines. */
+html:lang(ro) .hero__title {
+  font-size: clamp(2.7rem, 6.2vw, 6rem);
+  line-height: 1.22;
+}
+html:lang(ro) .hero__title .line {
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+html:lang(ro) .h2,
+html:lang(ro) .fstage__name,
+html:lang(ro) .panel__title,
+html:lang(ro) .frow__name,
+html:lang(ro) .done h3,
+html:lang(ro) .menu nav a {
+  line-height: 1.2;
+}
