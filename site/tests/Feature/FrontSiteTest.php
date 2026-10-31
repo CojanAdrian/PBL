@@ -27,6 +27,23 @@ class FrontSiteTest extends TestCase
             ->assertSee('href="http://localhost/ro"', false);
     }
 
+    public function test_link_previews_and_search_engines_get_what_they_need(): void
+    {
+        $this->get('/ro')->assertOk()
+            ->assertSee('<link rel="canonical" href="http://localhost/ro">', false)
+            ->assertSee('<meta property="og:locale" content="ro_RO">', false)
+            ->assertSee('<meta property="og:image" content="http://localhost/img/og.jpg">', false)
+            ->assertSee('hreflang="x-default"', false);
+
+        $this->get('/sitemap.xml')->assertOk()->assertHeader('Content-Type', 'application/xml')
+            ->assertSee('<loc>http://localhost/en</loc>', false)
+            ->assertSee('<loc>http://localhost/ro</loc>', false);
+
+        $this->get('/robots.txt')->assertOk()
+            ->assertSee('Disallow: /admin')
+            ->assertSee('Sitemap: http://localhost/sitemap.xml');
+    }
+
     public function test_unknown_locale_redirects_home(): void
     {
         $this->get('/xx')->assertRedirect('/');

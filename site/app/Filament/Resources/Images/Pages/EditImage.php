@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Images\Pages;
 
 use App\Filament\Support\Concerns\CancelsToList;
 use App\Filament\Resources\Images\ImageResource;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditImage extends EditRecord
@@ -15,8 +14,7 @@ class EditImage extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            DeleteAction::make(),
-        ];
+        // No Delete button: keys can only be changed.
+        return [];
     }
 }

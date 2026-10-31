@@ -103,6 +103,17 @@ class ShopAdminTest extends TestCase
         $this->assertFalse(ContentResource::canDeleteAny());
         $this->assertFalse(ImageResource::canDeleteAny());
         $this->get(PageResource::getUrl('create'))->assertForbidden();
+
+        // And the lists show no "New …" button.
+        $this->get(PageResource::getUrl())->assertOk()->assertDontSee('New page')->assertDontSee(PageResource::getUrl('create'));
+        $this->get(LangResource::getUrl())->assertOk()->assertDontSee('New lang');
+
+        // Text and image keys have no Delete button (list or edit page).
+        $content = Content::first();
+        $this->get(ContentResource::getUrl())->assertOk()->assertDontSee('Delete selected');
+        $this->get(ContentResource::getUrl('edit', ['record' => $content]))->assertOk()->assertDontSee('>Delete<', false);
+        $image = \App\Models\Image::create(['key' => 'site_logo', 'img' => 'logo.webp']);
+        $this->get(ImageResource::getUrl('edit', ['record' => $image]))->assertOk()->assertDontSee('>Delete<', false);
     }
 
     public function test_codes_are_made_from_the_names(): void

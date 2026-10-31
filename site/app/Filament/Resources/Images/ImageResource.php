@@ -9,7 +9,6 @@ use App\Filament\Support\Fields;
 use App\Filament\Support\Resource;
 use App\Models\Image;
 use BackedEnum;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -75,9 +74,8 @@ class ImageResource extends Resource
             ->recordActions([
                 EditAction::make(),
             ])
-            ->toolbarActions([
-                DeleteBulkAction::make(),
-            ]);
+            // No delete: every text/image is used by the site, so keys can only be changed.
+            ->toolbarActions([]);
     }
 
     public static function getPages(): array

@@ -48,11 +48,15 @@ class Fields
             ->columnSpanFull()
             ->schema([
                 Translations::tabs(fn (bool|Closure $required) => [
-                    TextInput::make('title')->required($required)->maxLength(255),
-                    Textarea::make('text')->label('Description')->required($required)->rows(2)->maxLength(500),
-                    TextInput::make('keywords')->required($required)->placeholder('comma, separated, keywords'),
+                    TextInput::make('title')->required($required)->maxLength(255)
+                        ->helperText('The browser tab, Google result and shared-link title. About 50–60 characters.'),
+                    Textarea::make('text')->label('Description')->required($required)->rows(2)->maxLength(500)
+                        ->helperText('The line under the title on Google and in shared links. About 120–155 characters.'),
+                    TextInput::make('keywords')->required($required)->placeholder('comma, separated, keywords')
+                        ->helperText('Optional. Google ignores keywords; they do no harm.'),
                 ], statePath: 'meta.trans', requireAll: false),
-                static::image('meta.img', $disk)->label('Share image'),
+                static::image('meta.img', $disk)->label('Share image')
+                    ->helperText('Shown when the link is shared (WhatsApp, Facebook, Telegram…). 1200 × 630 px, JPG, under 300 KB: WhatsApp leaves out bigger images.'),
             ]);
     }
 

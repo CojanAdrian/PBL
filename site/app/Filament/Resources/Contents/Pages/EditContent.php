@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Contents\Pages;
 
 use App\Filament\Resources\Contents\ContentResource;
 use App\Filament\Support\Concerns\EditsTranslatableRecord;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditContent extends EditRecord
@@ -15,8 +14,7 @@ class EditContent extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            DeleteAction::make(),
-        ];
+        // No Delete button: keys can only be changed.
+        return [];
     }
 }

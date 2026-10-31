@@ -33,15 +33,30 @@
   <meta name="theme-color" content="#0a0908">
   <link rel="icon" type="image/png" href="{{ $cms->imageUrl('favicon', 'img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
+  {{-- SEO: one address per language, and Google is told they are versions of the same page. --}}
+  <link rel="canonical" href="{{ route('front.index', ['locale' => $locale]) }}">
   @foreach ($langs as $lang)
     <link rel="alternate" hreflang="{{ $lang->code }}" href="{{ route('front.index', ['locale' => $lang->code]) }}">
   @endforeach
+  <link rel="alternate" hreflang="x-default" href="{{ route('front.index', ['locale' => config('app.locale')]) }}">
+  {{-- Link previews (WhatsApp, Facebook, Telegram, Viber…): Admin -> Website -> Pages -> Home -> SEO. --}}
+  @php($ogLocales = ['en' => 'en_US', 'ro' => 'ro_RO', 'ru' => 'ru_RU'])
   <meta property="og:type" content="website">
-  <meta property="og:url" content="{{ url()->current() }}">
+  <meta property="og:site_name" content="Big Ed's Jerky">
+  <meta property="og:url" content="{{ route('front.index', ['locale' => $locale]) }}">
+  <meta property="og:locale" content="{{ $ogLocales[$locale] ?? $locale }}">
+  @foreach ($langs as $lang)
+    @continue($lang->code === $locale)
+    <meta property="og:locale:alternate" content="{{ $ogLocales[$lang->code] ?? $lang->code }}">
+  @endforeach
   <meta property="og:title" content="{{ $title }}">
   <meta property="og:description" content="{{ $description }}">
   <meta property="og:image" content="{{ $ogImage }}">
+  <meta property="og:image:alt" content="{{ $title }}">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ $title }}">
+  <meta name="twitter:description" content="{{ $description }}">
+  <meta name="twitter:image" content="{{ $ogImage }}">
   <link rel="preload" href="{{ asset('fonts/anton-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ asset('fonts/manrope-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" as="image">

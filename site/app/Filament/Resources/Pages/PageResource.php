@@ -11,12 +11,10 @@ use App\Models\Page;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -41,13 +39,13 @@ class PageResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make()->columns(2)->columnSpanFull()->schema([
+            Section::make()->columnSpanFull()->schema([
+                // Read-only: the site and the Visual editor find the page by this name.
                 TextInput::make('label')
-                    ->label('Route name')
-                    ->helperText('The front-end route this page links to, e.g. front.news. Active pages appear in the site menu.')
-                    ->required()
-                    ->maxLength(255),
-                Toggle::make('active')->label('Show in menu')->default(true)->inline(false),
+                    ->label('Page')
+                    ->formatStateUsing(fn (?string $state) => $state === 'front.index' ? 'Home (the whole site)' : $state)
+                    ->disabled()
+                    ->dehydrated(false),
             ]),
             Fields::seo(static::$disk)->collapsed(false),
         ]);
@@ -58,9 +56,8 @@ class PageResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('id')->label('#')->sortable(),
-                TextColumn::make('label')->label('Route name')->searchable()->fontFamily('mono'),
+                TextColumn::make('label')->label('Page')->formatStateUsing(fn (string $state) => $state === 'front.index' ? 'Home (the whole site)' : $state),
                 TextColumn::make('contents_count')->counts('contents')->label('Content blocks')->badge()->color('gray'),
-                ToggleColumn::make('active')->label('In menu'),
             ])
             ->recordActions([
                 EditAction::make(),

@@ -10,7 +10,6 @@ use App\Filament\Support\Translations;
 use App\Models\Content;
 use BackedEnum;
 use Closure;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -82,9 +81,8 @@ class ContentResource extends Resource
             ->recordActions([
                 EditAction::make(),
             ])
-            ->toolbarActions([
-                DeleteBulkAction::make(),
-            ]);
+            // No delete: every text/image is used by the site, so keys can only be changed.
+            ->toolbarActions([]);
     }
 
     public static function getPages(): array

@@ -4,6 +4,7 @@ use App\Http\Controllers\front\HomeController;
 use App\Http\Controllers\front\PreorderController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\VisualEditorController;
+use App\Models\Lang;
 use Illuminate\Support\Facades\Route;
 
 // The admin panel (/admin) is registered by App\Providers\Filament\AdminPanelProvider.
@@ -20,6 +21,14 @@ Route::controller(VisualEditorController::class)->prefix('cms')->name('cms.')->g
 });
 
 Route::redirect('/', '/'.config('app.locale'));
+
+// For search engines: the site in every active language, and where to find that list.
+Route::get('/sitemap.xml', function () {
+    $codes = Lang::where('active', true)->orderBy('id')->pluck('code');
+
+    return response()->view('front.sitemap', ['codes' => $codes], 200, ['Content-Type' => 'application/xml']);
+})->name('sitemap');
+Route::get('/robots.txt', fn () => response("User-agent: *\nDisallow: /admin\nSitemap: ".route('sitemap')."\n", 200, ['Content-Type' => 'text/plain']));
 
 Route::prefix('{locale}')
     ->where(['locale' => '[a-zA-Z]{2,10}'])
