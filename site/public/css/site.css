@@ -978,6 +978,22 @@ html:not(.motion) .craft__progress {
 .ftab__text {
   display: grid;
   gap: 3px;
+  min-width: 0; /* lets a long name wrap instead of pushing the heat bars out */
+}
+@media (min-width: 900px) {
+  /* Vertical tabs: long names ("Чесночный терияки") wrap onto two lines. */
+  .ftab__name {
+    white-space: normal;
+    line-height: 1.02;
+  }
+  .ftab__heat {
+    flex-shrink: 0;
+  }
+}
+/* Romanian and Russian names are longer (and Russian uses the wider Oswald). */
+html:lang(ru) .ftab__name,
+html:lang(ro) .ftab__name {
+  letter-spacing: 0;
 }
 .ftab__meat {
   font-size: 0.66rem;
@@ -1360,5 +1376,12 @@ html:not(.motion) .craft__progress {
 @media (min-width: 900px) {
   .fstage__nav {
     display: none;
+  }
+}
+
+/* Russian flavour tabs: a touch smaller, because Oswald (Cyrillic) is wider than Anton. */
+@media (min-width: 900px) {
+  html:lang(ru) .ftab__name {
+    font-size: 1.4rem;
   }
 }
