@@ -44,7 +44,10 @@ class Metrics extends Widget
             ],
             [
                 'label' => __('Orders'), 'value' => $orders, 'change' => $ordersChange,
-                'caption' => $visitors ? __(':rate% of visitors ordered', ['rate' => round($orders / $visitors * 100, 1)]) : __('Preorders from the website'),
+                // Only when it makes sense: orders copied from the old site have no visits behind them.
+                'caption' => $visitors && $orders <= $visitors
+                    ? __(':rate% of visitors ordered', ['rate' => round($orders / $visitors * 100, 1)])
+                    : __('Preorders from the website'),
                 'bars' => $this->perDay(Order::query()), 'tint' => 'amber', 'url' => OrderResource::getUrl(),
             ],
             [

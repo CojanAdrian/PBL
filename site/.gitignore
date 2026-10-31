@@ -14,11 +14,8 @@
 /auth.json
 /node_modules
 /public/build
-/public/css/filament
-/public/fonts/filament
 /public/hot
 /public/images/flags
-/public/js/filament
 /public/storage
 /storage/*.key
 /storage/pail
@@ -27,3 +24,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /.claude/settings.local.json
+
+# Filament's published assets (public/css|js|fonts/filament) are committed on purpose:
+# Railway installs packages with --no-scripts, so they would not be generated there.
