@@ -62,7 +62,7 @@ The existing Railway project (website service + Postgres) is reused. The new sit
    | `APP_DEBUG` | `false` |
    | `DB_CONNECTION` | `pgsql` |
    | `DB_URL` | `${{Postgres.DATABASE_URL}}` |
-   | `RAILPACK_PHP_EXTENSIONS` | `pdo_pgsql` |
+   | `RAILPACK_PHP_EXTENSIONS` | `pdo_pgsql,intl,zip` |
    | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The first admin's login (only used while there is no user yet) |
    | `QUEUE_CONNECTION` | `sync` |
    | `LOG_CHANNEL` | `stderr` |
