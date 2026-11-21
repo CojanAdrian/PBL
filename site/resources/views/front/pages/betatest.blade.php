@@ -3,9 +3,9 @@
     home.blade.php. Same products, prices and order endpoint as the main page;
     texts in App\Shop\BetaTexts (order-form errors still come from Text blocks).
 
-    One WebGL canvas (public/js/beta3d.js) sits behind the page. The pack flies to
-    whichever [data-anchor] box is on screen: the hero, the intro, the flavours.
-    Everything else (flavour list, order panel) is drawn by public/js/beta.js.
+    The story section is tall and its stage sticks to the screen: scrolling turns
+    the 3D pack (public/js/beta3d.js); each half turn shows the next flavour.
+    The captions, the "Choose" cards and the order panel are drawn by public/js/beta.js.
 --}}
 @php
     $cms = app(\App\Support\Cms\Cms::class);
@@ -19,11 +19,8 @@
         'instagram' => ltrim($cms->plain('footer_instagram'), '@'),
         'telegram' => ltrim($cms->plain('footer_telegram'), '@'),
     ])->filter();
-    $cheapest = collect($menu['flavours'])->min('price');
     $packGrams = collect($menu['flavours'])->pluck('grams')->unique()->count() === 1 ? $menu['flavours'][0]['grams'] : 100;
-    $price = fn ($n) => number_format($n, 0, '.', ' ').' '.$menu['currency'];
     $v = fn ($file) => asset($file).'?v='.filemtime(public_path($file));
-    $hint = '<span class="hint" aria-hidden="true"><i></i>'.e($b['hint_drag']).' · '.e($b['hint_tap']).'</span>';
 @endphp
 <!doctype html>
 <html lang="{{ $locale }}" class="no-js">
@@ -34,11 +31,11 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{{ $b['title'] }}</title>
   <meta name="description" content="{{ $b['description'] }}">
-  <meta name="theme-color" content="#0e0b09">
+  <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" href="{{ $cms->imageUrl('favicon', 'img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
-  <link rel="preload" href="{{ asset('fonts/anton-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ asset('fonts/manrope-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ asset('fonts/anton-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="modulepreload" href="{{ asset('vendor/three/three.module.min.js') }}">
   <link rel="stylesheet" href="{{ $v('css/beta.css') }}">
   <script>document.documentElement.className = 'js';</script>
@@ -47,7 +44,7 @@
 <body>
   <a class="skip" href="#main">{{ $cms->plain('skip_link', 'Skip to content') }}</a>
 
-  {{-- Gradients used by the 2D pack drawings in the order panel (pouch.js adds one per meat). --}}
+  {{-- Gradients for the flat pack drawings (used in the order panel and when 3D is unavailable). --}}
   <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="pouchBody" x1="0" y1="0" x2="0" y2="1">
@@ -62,17 +59,11 @@
     </defs>
   </svg>
 
-  <div class="glow" aria-hidden="true"></div>
-  <canvas class="stage3d" data-stage aria-hidden="true"></canvas>
-
   <p class="betabar">{{ $b['beta_bar'] }} <a href="{{ route('front.index', ['locale' => $locale]) }}">{{ $b['beta_back'] }}</a></p>
 
   <header class="nav" data-nav>
     <div class="nav__in">
-      <a class="nav__brand" href="#top" aria-label="Big Ed's Jerky">
-        <img src="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" width="40" height="40" alt="">
-        <span>Big Ed's</span>
-      </a>
+      <a class="nav__brand" href="#top">Big Ed's</a>
       <nav class="nav__links" aria-label="Main">
         <a href="#flavours">{{ $b['nav_flavours'] }}</a>
         <a href="#how">{{ $b['nav_how'] }}</a>
@@ -85,104 +76,89 @@
           @endforeach
         </nav>
       @endif
-      <button class="nav__order" type="button" data-open-order>
-        <span>{{ $b['nav_order'] }}</span><span class="count" data-count>0</span>
+      <a class="nav__buy" href="#choose">{{ $b['nav_choose'] }}</a>
+      <button class="nav__order" type="button" data-open-order aria-label="{{ $b['nav_order'] }}">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        <span class="count" data-count hidden>0</span>
       </button>
     </div>
   </header>
 
   <main id="main">
-    <section class="hero" id="top" aria-labelledby="hero-title">
-      <div class="hero__grid">
-        <div class="hero__copy">
-          <p class="kicker" data-in>{{ $b['hero_kicker'] }}</p>
-          <h1 class="hero__title" id="hero-title">
-            <span class="hl" data-split>{{ $b['hero_title_1'] }}</span>
-            <span class="hl hl--accent" data-split>{{ $b['hero_title_2'] }}</span>
-          </h1>
-          <p class="hero__lead" data-in>{{ $b['hero_lead'] }}</p>
-          <div class="hero__act" data-in>
-            <a class="btn btn--fire" href="#flavours"><span>{{ $b['hero_cta'] }}</span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
-            <p class="hero__price"><strong>{{ str_replace('{price}', $price($cheapest), $b['hero_from']) }}</strong><span>{{ $b['hero_pay'] }}</span></p>
-          </div>
+    {{-- STORY: the stage sticks while the section scrolls by. --}}
+    <section class="story" id="top" data-story aria-label="{{ $b['nav_flavours'] }}">
+      <div class="story__stage">
+        <canvas class="story__canvas" data-canvas aria-hidden="true"></canvas>
+        <div class="story__fallback" data-fallback aria-hidden="true"></div>
+
+        <div class="cap cap--hero" data-cap-hero>
+          <p class="cap__kicker">{{ $b['hero_kicker'] }}</p>
+          <h1 class="cap__title">{{ $b['hero_title'] }}</h1>
         </div>
-        <div class="anchor hero__anchor" data-anchor data-fill="1" data-drag>
-          <div class="fallback" data-fallback></div>
-          {!! $hint !!}
-        </div>
+        <p class="cap cap--lead" data-cap-hero>{{ $b['hero_lead'] }}</p>
+        <p class="story__cue" data-cue aria-hidden="true">{{ $b['hero_scroll'] }}<span></span></p>
+
+        <div class="caps" data-caps aria-live="polite"></div>
+        <nav class="story__index" data-index aria-label="{{ $b['nav_flavours'] }}"></nav>
       </div>
+      <span id="flavours" class="story__mark" aria-hidden="true"></span>
     </section>
 
-    <section class="intro" id="new" aria-labelledby="new-title">
-      <div class="wrap intro__grid">
-        <div class="anchor intro__anchor" data-anchor data-fill=".8" data-desktop-only></div>
-        <div class="intro__copy">
-          <p class="kicker" data-in>{{ $b['new_kicker'] }}</p>
-          <h2 id="new-title" data-words>{{ $b['new_title'] }}</h2>
-          <ul class="points">
-            @foreach ([1, 2, 3] as $i)
-              <li data-in>
-                <h3>{{ $b["new_{$i}_t"] }}</h3>
-                <p>{{ $b["new_{$i}_d"] }}</p>
-              </li>
-            @endforeach
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    {{-- THE FLAVOURS: pinned on large screens; scrolling (or clicking) changes flavour and the pack explodes. --}}
-    <section class="lab" id="flavours" data-lab aria-labelledby="lab-title">
-      <div class="lab__stage">
-        <div class="lab__copy">
-          <div class="lab__head">
-            <p class="kicker" id="lab-title">{{ $b['lab_kicker'] }}</p>
-            <p class="lab__lead">{{ str_replace('{g}', $packGrams, $b['lab_lead']) }}</p>
-          </div>
-          <div class="lab__list" role="tablist" aria-labelledby="lab-title" data-list></div>
-          <div class="lab__details" role="tabpanel" data-details aria-live="polite"></div>
-          <noscript><p>{{ $b['lab_noscript'] }}</p></noscript>
-        </div>
-        <div class="anchor lab__anchor" data-anchor data-fill="1.05" data-drag>
-          <div class="fallback" data-fallback></div>
-          {!! $hint !!}
-        </div>
-        <div class="lab__progress" aria-hidden="true"><span data-progress></span></div>
+    <section class="choose" id="choose" aria-labelledby="choose-title">
+      <div class="wrap">
+        <header class="head" data-reveal>
+          <h2 id="choose-title">{{ $b['choose_title'] }}</h2>
+          <p>{{ str_replace('{g}', $packGrams, $b['choose_lead']) }}</p>
+        </header>
+        <div class="grid" data-grid></div>
+        <div data-box></div>
       </div>
     </section>
 
     <section class="how" id="how" aria-labelledby="how-title">
       <div class="wrap">
-        <h2 id="how-title" data-words>{{ $b['how_title'] }}</h2>
-        <ol class="steps">
+        <h2 id="how-title" data-reveal>{{ $b['how_title'] }}</h2>
+        <ol class="how__list">
           @foreach ([1, 2, 3] as $i)
-            <li data-in>
-              <span class="steps__n" aria-hidden="true">0{{ $i }}</span>
+            <li data-reveal>
+              <span class="how__n" aria-hidden="true">{{ $i }}</span>
               <h3>{{ $b["how_{$i}_t"] }}</h3>
               <p>{{ $b["how_{$i}_d"] }}</p>
             </li>
           @endforeach
         </ol>
-        <p class="ingredients" data-in><strong>{{ $b['ingredients_title'] }}:</strong> {{ $ingredients->implode(', ') }}. <em>{{ $b['contains_soy'] }}</em></p>
+      </div>
+    </section>
+
+    <section class="made" aria-labelledby="made-title">
+      <div class="wrap made__grid">
+        <h2 id="made-title" data-reveal>{{ $b['made_title'] }}</h2>
+        <div data-reveal>
+          <p class="made__text">{{ $b['made_text'] }}</p>
+          <p class="made__ing"><span>{{ $b['ingredients_title'] }}</span> {{ $ingredients->implode(', ') }}. {{ $b['contains_soy'] }}</p>
+        </div>
       </div>
     </section>
 
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="wrap faq__grid">
-        <h2 id="faq-title" data-words>{{ $b['faq_title'] }}</h2>
-        <div class="faq__list">
+        <h2 id="faq-title" data-reveal>{{ $b['faq_title'] }}</h2>
+        <div class="faq__list" data-reveal>
           @foreach ([1, 2, 3, 4, 5] as $i)
-            <details data-in>
+            <details>
               <summary>{{ $b["faq_{$i}_q"] }}</summary>
-              <div class="faq__a"><p>{{ $b["faq_{$i}_a"] }}</p></div>
+              <p>{{ $b["faq_{$i}_a"] }}</p>
             </details>
           @endforeach
         </div>
       </div>
     </section>
+  </main>
 
-    <footer class="foot">
-      <div class="wrap foot__grid">
+  <footer class="foot">
+    <div class="wrap">
+      <div class="foot__top">
+        <p class="foot__brand">Big Ed's Jerky</p>
         <div class="foot__contact">
           @if ($contact->isEmpty())
             <p>{{ $b['footer_ask_empty'] }}</p>
@@ -193,10 +169,10 @@
                 <li><a href="tel:{{ preg_replace('/[^\d+]/', '', $contact['phone']) }}">{{ $contact['phone'] }}</a></li>
               @endisset
               @isset($contact['telegram'])
-                <li><a href="https://t.me/{{ $contact['telegram'] }}" rel="noopener">Telegram {{ '@'.$contact['telegram'] }}</a></li>
+                <li><a href="https://t.me/{{ $contact['telegram'] }}" rel="noopener">Telegram</a></li>
               @endisset
               @isset($contact['instagram'])
-                <li><a href="https://instagram.com/{{ $contact['instagram'] }}" rel="noopener">Instagram {{ '@'.$contact['instagram'] }}</a></li>
+                <li><a href="https://instagram.com/{{ $contact['instagram'] }}" rel="noopener">Instagram</a></li>
               @endisset
               @isset($contact['email'])
                 <li><a href="mailto:{{ $contact['email'] }}">{{ $contact['email'] }}</a></li>
@@ -204,31 +180,23 @@
             </ul>
           @endif
         </div>
-        <nav class="foot__nav" aria-label="Footer">
-          <a href="#flavours">{{ $b['nav_flavours'] }}</a>
-          <a href="#how">{{ $b['nav_how'] }}</a>
-          <a href="#faq">{{ $b['nav_faq'] }}</a>
-          <a href="#top">{{ $b['footer_top'] }} ↑</a>
-        </nav>
       </div>
-      <p class="foot__word" aria-hidden="true" data-foot-word>Big Ed's</p>
-      <p class="wrap foot__legal">© {{ date('Y') }} Big Ed's Jerky. {{ $b['footer_legal'] }}</p>
-    </footer>
-  </main>
+      <p class="foot__legal">© {{ date('Y') }} Big Ed's Jerky. {{ $b['footer_legal'] }}</p>
+    </div>
+  </footer>
 
   {{-- Shows once something is in the order. --}}
-  <button class="ticket" type="button" data-ticket data-open-order hidden>
-    <span class="ticket__count" data-ticket-count>0</span>
-    <span class="ticket__sum"><small data-ticket-packs></small><strong data-ticket-total></strong></span>
-    <span class="ticket__go">{{ $b['bar_review'] }}</span>
-  </button>
+  <div class="bag" data-bag hidden>
+    <p class="bag__sum"><span data-bag-packs></span><strong data-bag-total></strong></p>
+    <button class="btn btn--light" type="button" data-open-order>{{ $b['bar_review'] }}</button>
+  </div>
 
   <dialog class="panel" data-sheet aria-labelledby="sheet-title">
     <div class="panel__in">
       <header class="panel__head">
         <h2 id="sheet-title">{{ $b['sheet_title'] }}</h2>
         <button class="panel__close" type="button" data-close aria-label="{{ $b['sheet_close'] }}">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </header>
       <div data-sheet-body></div>
@@ -238,10 +206,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="application/json" id="menu-data">@json($menu)</script>
-  <script type="application/json" id="beta-texts">@json($b + ['_ingredients' => $ingredients])</script>
-  <script src="{{ asset('vendor/gsap.min.js') }}" defer></script>
-  <script src="{{ asset('vendor/ScrollTrigger.min.js') }}" defer></script>
-  <script src="{{ asset('vendor/lenis.min.js') }}" defer></script>
+  <script type="application/json" id="beta-texts">@json($b)</script>
   <script type="module" src="{{ $v('js/beta.js') }}"></script>
 </body>
 </html>

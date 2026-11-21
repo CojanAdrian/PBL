@@ -1,13 +1,15 @@
-// The redesigned page (/betatest): the flavour list, the order panel and the page
-// motion. The 3D pack lives in beta3d.js and is loaded on its own, so the page
-// still works (with flat pack drawings) when WebGL is not available.
-// Products, prices and the order endpoint are the same as the main page.
+// The redesigned page (/betatest).
+// 1. Story: a tall section whose stage sticks to the screen. Scrolling turns the
+//    3D pack (beta3d.js); each half turn shows the next flavour, with one caption.
+// 2. Choose: one card per flavour (product shots rendered from the same 3D pack),
+//    beef/chicken, add to order. 3. The order panel.
+// No animation libraries: native scroll, CSS transitions, one WebGL canvas that
+// only draws while the pack is moving. Same products, prices and endpoint as the main page.
 import { $, $$, esc, store, toast } from "./ui.js";
 import { pouchSVG, prepareMenu, fmtGrams } from "./pouch.js";
 import { t, packs } from "./i18n.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const desktop = () => window.matchMedia("(min-width: 900px)").matches;
 const cfg = JSON.parse($("#menu-data").textContent);
 const B = JSON.parse($("#beta-texts").textContent);
 prepareMenu(cfg);
@@ -19,7 +21,12 @@ const fill = (text, vars = {}) => String(text).replace(/\{(\w+)\}/g, (m, k) => (
 const b = (key, vars) => fill(B[key] ?? key, vars);
 const num = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 const money = (n) => `${num(n)} ${cur}`;
-const icon = (d, size = 20, sw = 2.4) =>
+const clamp = (v, a = 0, z = 1) => Math.max(a, Math.min(z, v));
+const smooth = (a, z, v) => {
+  const x = clamp((v - a) / (z - a));
+  return x * x * (3 - 2 * x);
+};
+const icon = (d, size = 18, sw = 2) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 const MINUS = icon("M5 12h14");
 const PLUS = icon("M12 5v14M5 12h14");
@@ -34,9 +41,10 @@ for (const f of cfg.flavours) {
   g.items.push(f);
 }
 const box = (cfg.boxes || [])[0];
-// The list in the flavour section: each flavour, then the taster box.
-const items = [...groups.map((g) => ({ group: g })), ...(box ? [{ box }] : [])];
 const fullName = (p) => p.fullName || p.name;
+const heatWord = (h) => B[`heat_${clamp(h, 1, 5)}`];
+// The story shows each flavour (first meat), then the taster box.
+const story = [...groups.map((g) => ({ product: g.items[0], group: g })), ...(box ? [{ product: box, box: true }] : [])];
 
 // ---------- State ----------
 const state = { lines: {}, sel: {}, d: { name: "", phone: "", note: "" }, sending: false, error: "", errors: {}, done: null };
@@ -53,7 +61,6 @@ try {
 const save = () => store.set(STORE_KEY, JSON.stringify({ lines: state.lines, sel: state.sel, d: state.d }));
 const qty = (id) => state.lines[id] || 0;
 const selected = (g) => byId.get(state.sel[g.name]) || g.items[0];
-const productOf = (item) => (item.box ? item.box : selected(item.group));
 function totals() {
   let count = 0;
   let cost = 0;
@@ -64,157 +71,226 @@ function totals() {
   return { count, cost };
 }
 
-// ---------- 3D scene (or flat drawings) ----------
-let scene = null;
-const fallbacks = $$("[data-fallback]");
-function showFallback(p) {
-  if (scene) return;
-  for (const el of fallbacks) el.innerHTML = pouchSVG(p, { label: b("pack_3d", { name: fullName(p) }) });
+// ======================================================================
+// Story
+// ======================================================================
+const storyEl = $("[data-story]");
+const capsEl = $("[data-caps]");
+const heroCaps = $$("[data-cap-hero]");
+const cue = $("[data-cue]");
+const indexEl = $("[data-index]");
+const fallbackEl = $("[data-fallback]");
+const N = story.length;
+const INTRO = 0.14; // share of the section used by the opening turn
+storyEl.style.setProperty("--n", String(N));
+
+capsEl.innerHTML = story
+  .map((s, i) => {
+    const p = s.product;
+    if (s.box) {
+      return `<div class="cap" data-cap="${i}">
+          <p class="cap__n">0${i + 1} <span>/ 0${N}</span></p>
+          <h2 class="cap__name">${esc(B.taster_name)}</h2>
+          <p class="cap__tag">${esc(p.tagline || "")}</p>
+          <p class="cap__meta">${esc(fmtGrams(p.grams))} · ${esc(money(p.price))}</p>
+        </div>`;
+    }
+    const prices = s.group.items.map((x) => `${esc(x.meatName)} ${esc(money(x.price))}`).join(" · ");
+    return `<div class="cap" data-cap="${i}">
+        <p class="cap__n">0${i + 1} <span>/ 0${N}</span></p>
+        <h2 class="cap__name">${esc(s.group.name)}</h2>
+        <p class="cap__tag">${esc(p.tagline || "")}</p>
+        <p class="cap__meta">${esc(heatWord(p.heat))} · ${prices}</p>
+      </div>`;
+  })
+  .join("");
+indexEl.innerHTML = story
+  .map((s, i) => `<button type="button" data-goto="${i}"><span>${esc(s.box ? B.taster_name : s.group.name)}</span><i></i></button>`)
+  .join("");
+const caps = $$("[data-cap]", capsEl);
+const dots = $$("[data-goto]", indexEl);
+
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+function angleAt(p) {
+  if (p < INTRO) return -0.6 + 0.6 * ease(p / INTRO);
+  const local = (p - INTRO) / (1 - INTRO);
+  const seg = local * N;
+  const k = Math.min(Math.floor(seg), N - 1);
+  const s = seg - k;
+  // Hold each flavour for most of its stretch, then turn half a revolution to the next.
+  const turn = k < N - 1 ? ease(clamp((s - 0.55) / 0.45)) : 0;
+  return Math.PI * (k + turn);
 }
-const accentOf = (p) => (p.box ? "#ff5a1f" : p.accent || "#ff5a1f");
-function setAccent(p) {
-  document.documentElement.style.setProperty("--accent", accentOf(p));
-  scene?.setAccent(accentOf(p));
+// The pack starts a little smaller under the headline and grows into place.
+const sizeAt = (p) => 0.84 + 0.16 * ease(clamp(p / INTRO));
+const progressFor = (i) => INTRO + (1 - INTRO) * ((i + 0.25) / N);
+function storyProgress() {
+  const r = storyEl.getBoundingClientRect();
+  const total = storyEl.offsetHeight - innerHeight;
+  return total > 0 ? clamp(-r.top / total) : 0;
 }
 
-// ---------- Flavour list ----------
-const listEl = $("[data-list]");
-const detailsEl = $("[data-details]");
-let active = 0;
+let stage = null;
+let lastActive = -1;
+function updateStory() {
+  const p = storyProgress();
+  const a = angleAt(p);
+  stage?.setAngle(a, { size: sizeAt(p) });
+  // Opening caption fades and lifts as the first turn happens.
+  const h = 1 - smooth(0.0, INTRO * 0.75, p);
+  for (const el of heroCaps) {
+    el.style.opacity = String(h);
+    el.style.transform = `translateY(${(1 - h) * -24}px)`;
+    el.style.visibility = h < 0.01 ? "hidden" : "visible";
+  }
+  cue.style.opacity = String(1 - smooth(0, 0.03, p));
+  // Flavour captions: fully shown while the pack faces front, gone while it is edge-on.
+  const pos = a / Math.PI;
+  const idx = clamp(Math.round(pos), 0, N - 1);
+  const off = Math.abs(pos - idx);
+  const show = p < INTRO * 0.7 ? 0 : 1 - smooth(0.06, 0.3, off);
+  caps.forEach((c, i) => {
+    const on = i === idx;
+    c.style.opacity = on ? String(show) : "0";
+    c.style.transform = on ? `translateY(${(1 - show) * 18}px)` : "translateY(18px)";
+    c.style.visibility = on && show > 0.01 ? "visible" : "hidden";
+  });
+  indexEl.style.opacity = String(smooth(INTRO * 0.5, INTRO, p));
+  if (idx !== lastActive) {
+    lastActive = idx;
+    dots.forEach((d, i) => d.setAttribute("aria-current", i === idx ? "true" : "false"));
+    if (!stage) fallbackEl.innerHTML = pouchSVG(story[idx].product, { label: b("pack_3d", { name: fullName(story[idx].product) }) });
+  }
+}
+let ticking = false;
+window.addEventListener(
+  "scroll",
+  () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      updateStory();
+    });
+  },
+  { passive: true }
+);
+window.addEventListener("resize", updateStory);
+indexEl.addEventListener("click", (e) => {
+  const d = e.target.closest("[data-goto]");
+  if (!d) return;
+  const top = storyEl.getBoundingClientRect().top + window.scrollY;
+  const total = storyEl.offsetHeight - innerHeight;
+  window.scrollTo({ top: top + total * progressFor(Number(d.dataset.goto)), behavior: reduce ? "auto" : "smooth" });
+});
+// "Flavours" in the nav goes to the first flavour, not the opening shot.
+$$('a[href="#flavours"]').forEach((a) =>
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const top = storyEl.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: top + (storyEl.offsetHeight - innerHeight) * progressFor(0), behavior: reduce ? "auto" : "smooth" });
+  })
+);
 
-function renderList() {
-  listEl.innerHTML = items
-    .map((it, i) => {
-      const p = productOf(it);
-      const name = it.box ? B.taster_name : it.group.name;
-      const from = it.box ? money(it.box.price) : b("hero_from", { price: money(Math.min(...it.group.items.map((x) => x.price))) });
-      return `<button class="lab__item" type="button" role="tab" id="lab-tab-${i}" aria-selected="${i === active}" tabindex="${i === active ? 0 : -1}" data-item="${i}" style="--c:${esc(accentOf(p))}">
-          <span class="lab__n">0${i + 1}</span><span class="lab__name">${esc(name)}</span><span class="lab__from">${esc(from)}</span>
-        </button>`;
-    })
-    .join("");
-}
-function heatHTML(level) {
-  const word = B[`heat_${Math.max(1, Math.min(5, level))}`];
-  const bars = Array.from({ length: 5 }, (_, i) => `<i class="${i < level ? "on" : ""}" style="--i:${i}"></i>`).join("");
-  return `<p class="heat"><span class="heat__bars" role="img" aria-label="${esc(b("heat_aria", { word }))}">${bars}</span><span>${esc(word)}</span></p>`;
-}
+// ======================================================================
+// Choose
+// ======================================================================
+const gridEl = $("[data-grid]");
+const boxEl = $("[data-box]");
+let shots = {};
+const shotFor = (p) => (shots[p.id] ? `<img src="${shots[p.id]}" alt="${esc(b("pack_3d", { name: fullName(p) }))}" width="720" height="900">` : pouchSVG(p, { label: b("pack_3d", { name: fullName(p) }) }));
+
 function actHTML(p) {
   const q = qty(p.id);
-  if (!q) return `<button class="btn btn--fire btn--wide" type="button" data-add="${esc(p.id)}">${PLUS}<span>${esc(B.add)}</span><span class="btn__price">${esc(money(p.price))}</span></button>`;
+  if (!q) return `<button class="btn btn--light btn--wide" type="button" data-add="${esc(p.id)}">${esc(B.add)}</button>`;
   return `<div class="stepper" role="group" aria-label="${esc(fullName(p))}">
       <button type="button" data-dec="${esc(p.id)}" aria-label="${esc(b("fewer", { name: fullName(p) }))}">${MINUS}</button>
-      <output aria-live="polite"><strong>${q}</strong><small>${esc(B.in_order)}</small></output>
+      <output aria-live="polite">${q} <small>${esc(B.in_order)}</small></output>
       <button type="button" data-inc="${esc(p.id)}" aria-label="${esc(b("more", { name: fullName(p) }))}" ${q >= MAX_QTY ? "disabled" : ""}>${PLUS}</button>
     </div>`;
 }
-function renderDetails({ animate = false } = {}) {
-  const it = items[active];
-  const p = productOf(it);
-  let html = "";
-  if (it.box) {
-    html = `<p class="det__tag">${esc(it.box.tagline || "")}</p>
-      <p class="det__notes">${esc(it.box.notes || "")}</p>
-      <p class="det__meta">${esc(it.box.name)} · ${esc(fmtGrams(it.box.grams))}</p>`;
-  } else {
-    const g = it.group;
-    html = `<p class="det__tag">${esc(p.tagline || "")}</p>
-      <p class="det__notes">${esc(p.notes || "")}</p>
-      ${heatHTML(p.heat)}
-      ${g.items.length > 1 ? `<div class="meat" role="radiogroup" aria-label="${esc(b("meat_aria", { name: g.name }))}">${g.items
+function cardHTML(g, gi) {
+  const p = selected(g);
+  return `<article class="card" data-card="${gi}" aria-labelledby="card-${gi}">
+      <div class="card__shot" data-shot>${shotFor(p)}</div>
+      <h3 class="card__name" id="card-${gi}">${esc(g.name)}</h3>
+      <p class="card__tag">${esc(p.tagline || "")}</p>
+      <p class="card__notes">${esc(p.notes || "")}</p>
+      <dl class="card__facts"><div><dt>${esc(B.heat)}</dt><dd>${esc(heatWord(p.heat))}</dd></div><div><dt>${esc(p.typeName || "")}</dt><dd>${esc(fmtGrams(p.grams))}</dd></div></dl>
+      ${g.items.length > 1 ? `<div class="seg" role="radiogroup" aria-label="${esc(b("meat_aria", { name: g.name }))}">${g.items
         .map((x) => {
           const on = x.id === p.id;
           const n = qty(x.id);
-          return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-pick="${esc(x.id)}"><strong>${esc(x.meatName)}</strong><span>${esc(money(x.price))}</span>${n ? `<b>${n}</b>` : ""}</button>`;
+          return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-pick="${esc(x.id)}" data-group="${gi}">${esc(x.meatName)}${n ? ` <b>${n}</b>` : ""}</button>`;
         })
-        .join("")}</div>` : ""}`;
-  }
-  detailsEl.innerHTML = `<div class="det">${html}<div class="det__act">${actHTML(p)}</div></div>`;
-  detailsEl.setAttribute("aria-labelledby", `lab-tab-${active}`);
-  if (animate && !reduce) {
-    $$(".det > *", detailsEl).forEach((el, i) =>
-      el.animate([{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }], { duration: 500, delay: 60 + i * 45, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" })
-    );
+        .join("")}</div>` : ""}
+      <p class="card__price">${esc(money(p.price))}</p>
+      <div class="card__act">${actHTML(p)}</div>
+    </article>`;
+}
+function renderGrid() {
+  gridEl.innerHTML = groups.map(cardHTML).join("");
+  if (box) {
+    boxEl.innerHTML = `<article class="boxrow" aria-labelledby="box-title">
+        <div class="boxrow__shot">${shotFor(box)}</div>
+        <div class="boxrow__info">
+          <h3 id="box-title">${esc(B.box_title)}</h3>
+          <p class="card__notes">${esc(box.notes || box.tagline || "")}</p>
+          <p class="card__price">${esc(box.name)} · ${esc(fmtGrams(box.grams))} · ${esc(money(box.price))}</p>
+          <div class="card__act" data-box-act>${actHTML(box)}</div>
+        </div>
+      </article>`;
   }
 }
-function setActive(i, { burst = true } = {}) {
-  i = Math.max(0, Math.min(items.length - 1, i));
-  if (i === active && listEl.children.length) return;
-  active = i;
-  $$(".lab__item", listEl).forEach((el, k) => {
-    el.setAttribute("aria-selected", String(k === i));
-    el.tabIndex = k === i ? 0 : -1;
-  });
-  const p = productOf(items[i]);
-  setAccent(p);
-  renderDetails({ animate: true });
-  if (scene) scene.setProduct(p, { mode: burst ? "burst" : "swap" });
-  else showFallback(p);
+function updateCard(gi) {
+  const el = $(`[data-card="${gi}"]`, gridEl);
+  if (!el) return;
+  const focused = document.activeElement?.dataset?.pick;
+  el.outerHTML = cardHTML(groups[gi], gi);
+  if (focused) $(`[data-pick="${CSS.escape(focused)}"]`, gridEl)?.focus({ preventScroll: true });
+}
+function updateBox() {
+  const act = $("[data-box-act]", boxEl);
+  if (act) act.innerHTML = actHTML(box);
 }
 
-// ---------- Order ticket + nav count ----------
-const ticket = $("[data-ticket]");
+// ======================================================================
+// Order bar + panel
+// ======================================================================
+const bag = $("[data-bag]");
 let lastCount = -1;
-function renderTicket() {
+function renderBag() {
   const { count, cost } = totals();
-  ticket.hidden = count === 0;
-  document.body.classList.toggle("has-ticket", count > 0);
-  $("[data-ticket-count]").textContent = String(count);
-  $("[data-ticket-packs]").textContent = packs(count);
-  $("[data-ticket-total]").textContent = money(cost);
+  bag.hidden = count === 0;
+  document.body.classList.toggle("has-bag", count > 0);
+  $("[data-bag-packs]").textContent = packs(count);
+  $("[data-bag-total]").textContent = money(cost);
   const badge = $("[data-count]");
   badge.hidden = count === 0;
   badge.textContent = String(count);
   if (count > lastCount && lastCount >= 0 && !reduce) {
-    for (const el of [ticket, badge]) el.animate([{ transform: "scale(1)" }, { transform: "scale(1.15)" }, { transform: "scale(1)" }], { duration: 380, easing: "cubic-bezier(.3,1.5,.5,1)" });
+    badge.animate([{ transform: "scale(1)" }, { transform: "scale(1.35)" }, { transform: "scale(1)" }], { duration: 400, easing: "cubic-bezier(.2,.8,.2,1)" });
   }
   lastCount = count;
 }
-// A small pack flies from the 3D pack to the order button.
-function fly(p) {
-  if (reduce) return;
-  const from = $(desktop() ? ".lab__anchor" : ".lab__anchor").getBoundingClientRect();
-  const to = (ticket.hidden ? $(".nav__order") : ticket).getBoundingClientRect();
-  if (from.bottom < 0 || from.top > innerHeight) return;
-  const node = document.createElement("div");
-  node.className = "fly";
-  node.innerHTML = pouchSVG(p, { mini: true });
-  const x0 = from.left + from.width / 2 - 30;
-  const y0 = from.top + from.height / 2 - 45;
-  Object.assign(node.style, { left: `${x0}px`, top: `${y0}px` });
-  document.body.appendChild(node);
-  const dx = to.left + to.width / 2 - x0 - 30;
-  const dy = to.top + to.height / 2 - y0 - 45;
-  node
-    .animate(
-      [
-        { transform: "translate(0,0) scale(.6) rotate(0)", opacity: 0 },
-        { transform: `translate(${dx * 0.3}px, ${dy * 0.3 - 140}px) scale(1) rotate(-16deg)`, opacity: 1, offset: 0.35 },
-        { transform: `translate(${dx}px, ${dy}px) scale(.25) rotate(-30deg)`, opacity: 0.4 },
-      ],
-      { duration: 800, easing: "cubic-bezier(.45,0,.55,1)" }
-    )
-    .finished.finally(() => node.remove());
-}
 
-// ---------- Order panel ----------
 const sheet = $("[data-sheet]");
 const sheetBody = $("[data-sheet-body]");
 function lineHTML(id, q) {
   const p = byId.get(id);
   const sub = p.box ? fmtGrams(p.grams) : `${p.meatName} · ${fmtGrams(p.grams)}`;
   return `<li class="line">
-      <span class="line__pack">${pouchSVG(p, { mini: true })}</span>
+      <span class="line__shot">${shots[p.id] ? `<img src="${shots[p.id]}" alt="" width="72" height="90">` : pouchSVG(p, { mini: true })}</span>
       <div class="line__main">
         <p class="line__name">${esc(p.name)}</p>
-        <p class="line__sub">${esc(sub)} · ${esc(money(p.price))}</p>
+        <p class="line__sub">${esc(sub)}</p>
         <div class="line__row">
           <div class="stepper stepper--sm" role="group" aria-label="${esc(fullName(p))}">
             <button type="button" data-dec="${esc(id)}" aria-label="${esc(b("fewer", { name: fullName(p) }))}">${MINUS}</button>
             <output aria-live="polite">${q}</output>
             <button type="button" data-inc="${esc(id)}" aria-label="${esc(b("more", { name: fullName(p) }))}" ${q >= MAX_QTY ? "disabled" : ""}>${PLUS}</button>
           </div>
-          <button class="line__remove" type="button" data-remove="${esc(id)}" aria-label="${esc(b("remove", { name: fullName(p) }))}">${icon("M6 6l12 12M18 6L6 18", 16)}</button>
+          <button class="line__remove" type="button" data-remove="${esc(id)}">${esc(b("remove", { name: "" }).trim())}</button>
         </div>
       </div>
       <p class="line__price">${esc(money(p.price * q))}</p>
@@ -225,11 +301,11 @@ function renderSheet() {
   if (state.done) {
     const d = state.done;
     sheetBody.innerHTML = `<div class="done">
-        <svg class="done__check" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M19 33l9 9 17-19"/></svg>
+        <svg class="done__check" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M20 33l8 8 16-18"/></svg>
         <h3 tabindex="-1">${esc(b("done_title", { name: d.name }))}</h3>
         <p>${esc(b("done_lead", { phone: d.phone }))}</p>
         <p class="done__code"><small>${esc(B.done_code)}</small><strong>${esc(d.code)}</strong></p>
-        <button class="btn btn--fire btn--wide" type="button" data-close>${esc(B.done_close)}</button>
+        <button class="btn btn--light btn--wide" type="button" data-close>${esc(B.done_close)}</button>
       </div>`;
     return;
   }
@@ -240,8 +316,7 @@ function renderSheet() {
   }
   const { cost } = totals();
   const err = (k) => esc(state.errors[k] || "");
-  const active = document.activeElement;
-  const keepFocus = active?.closest?.("[data-sheet]") && active.name;
+  const focusedName = document.activeElement?.closest?.("[data-sheet]") && document.activeElement.name;
   sheetBody.innerHTML = `
     <ul class="lines">${ids.map((id) => lineHTML(id, state.lines[id])).join("")}</ul>
     <p class="total"><span>${esc(B.total)}</span><strong>${esc(money(cost))}</strong></p>
@@ -264,23 +339,18 @@ function renderSheet() {
       </div>
       <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
       ${state.error ? `<p class="form__err" role="alert">${esc(state.error)}</p>` : ""}
-      <button class="btn btn--fire btn--wide btn--lg" type="submit" ${state.sending ? "disabled" : ""}>${state.sending ? `<span class="spin" aria-hidden="true"></span>` : ""}<span>${esc(state.sending ? B.sending : B.send)}</span><span class="btn__price">${esc(money(cost))}</span></button>
+      <button class="btn btn--light btn--wide" type="submit" ${state.sending ? "disabled" : ""}>${state.sending ? `<span class="spin" aria-hidden="true"></span>${esc(B.sending)}` : `${esc(B.send)} · ${esc(money(cost))}`}</button>
       <p class="form__note">${esc(B.sheet_pay)}</p>
     </form>`;
-  if (keepFocus) $(`[name="${keepFocus}"]`, sheetBody)?.focus();
+  if (focusedName) $(`[name="${focusedName}"]`, sheetBody)?.focus();
 }
-let lenis = null;
 function openSheet() {
-  if (!sheet.open) {
-    sheet.showModal();
-    lenis?.stop();
-  }
+  if (!sheet.open) sheet.showModal();
   renderSheet();
   (state.done ? $(".done h3", sheetBody) : $(".panel__close", sheet))?.focus();
 }
 const closeSheet = () => sheet.close();
 sheet.addEventListener("close", () => {
-  lenis?.start();
   if (state.done) {
     state.done = null;
     renderAll();
@@ -366,61 +436,46 @@ sheetBody.addEventListener("submit", (e) => {
 });
 
 // ---------- Editing ----------
+function groupIndexOf(id) {
+  return groups.findIndex((g) => g.items.some((i) => i.id === id));
+}
 function setQty(id, n) {
-  const q = Math.max(0, Math.min(MAX_QTY, n));
+  const q = clamp(n, 0, MAX_QTY);
   if (q) state.lines[id] = q;
   else delete state.lines[id];
   state.error = "";
   save();
-  renderDetails();
-  renderTicket();
+  const gi = groupIndexOf(id);
+  if (gi >= 0) updateCard(gi);
+  if (box && id === box.id) updateBox();
+  renderBag();
   renderSheet();
 }
 function renderAll() {
-  renderDetails();
-  renderTicket();
+  renderGrid();
+  renderBag();
   renderSheet();
 }
-
 document.addEventListener("click", (e) => {
-  const tab = e.target.closest("[data-item]");
-  if (tab) {
-    const i = Number(tab.dataset.item);
-    if (pinned && lenis) {
-      // Scroll to that flavour's part of the pinned section; the scroll picks it.
-      const lab = $("[data-lab]");
-      const top = lab.getBoundingClientRect().top + window.scrollY;
-      const span = lab.offsetHeight - innerHeight;
-      lenis.scrollTo(top + span * ((i + 0.5) / items.length), { duration: 1.1 });
-    } else setActive(i);
-    return;
-  }
   const el = e.target.closest("[data-add], [data-inc], [data-dec], [data-remove], [data-pick], [data-close]");
   if (!el) return;
   if (el.dataset.close !== undefined) return closeSheet();
   if (el.dataset.pick) {
-    const g = items[active].group;
-    if (!g || state.sel[g.name] === el.dataset.pick) return;
+    const gi = Number(el.dataset.group);
+    const g = groups[gi];
+    if (state.sel[g.name] === el.dataset.pick) return;
     state.sel[g.name] = el.dataset.pick;
     save();
-    const p = productOf(items[active]);
-    setAccent(p);
-    renderDetails();
-    scene?.setProduct(p, { mode: "swap" });
-    showFallback(p);
-    $(`[data-pick="${CSS.escape(el.dataset.pick)}"]`, detailsEl)?.focus({ preventScroll: true });
+    updateCard(gi);
+    $(`[data-pick="${CSS.escape(el.dataset.pick)}"]`, gridEl)?.focus({ preventScroll: true });
     return;
   }
   const id = el.dataset.add || el.dataset.inc || el.dataset.dec || el.dataset.remove;
   const inSheet = Boolean(el.closest("[data-sheet]"));
-  const scope = inSheet ? sheetBody : detailsEl;
+  const scope = inSheet ? sheetBody : document;
   if (el.dataset.add || el.dataset.inc) {
     setQty(id, qty(id) + 1);
-    if (!inSheet) {
-      scene?.pulse();
-      fly(byId.get(id));
-      if (reduce) toast(fullName(byId.get(id)));
-    }
+    if (!inSheet && reduce) toast(fullName(byId.get(id)));
     $(`[data-inc="${CSS.escape(id)}"]`, scope)?.focus({ preventScroll: true });
   } else if (el.dataset.dec) {
     setQty(id, qty(id) - 1);
@@ -429,164 +484,56 @@ document.addEventListener("click", (e) => {
     setQty(id, 0);
   }
 });
-// Arrow keys: through the flavour tabs, and between beef and chicken.
-document.addEventListener("keydown", (e) => {
+gridEl.addEventListener("keydown", (e) => {
+  const radio = e.target.closest("[data-pick]");
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-  if (!step) return;
-  const tab = e.target.closest?.("[data-item]");
-  const radio = e.target.closest?.("[data-pick]");
-  if (tab) {
-    e.preventDefault();
-    const next = $$("[data-item]", listEl)[(Number(tab.dataset.item) + step + items.length) % items.length];
-    next.focus();
-    next.click();
-  } else if (radio) {
-    e.preventDefault();
-    const all = $$("[data-pick]", radio.parentElement);
-    all[(all.indexOf(radio) + step + all.length) % all.length].click();
-  }
+  if (!radio || !step) return;
+  e.preventDefault();
+  const all = $$("[data-pick]", radio.parentElement);
+  all[(all.indexOf(radio) + step + all.length) % all.length].click();
 });
-
-// ---------- First render ----------
-renderList();
-active = 0;
-setAccent(productOf(items[0]));
-renderDetails();
-renderTicket();
-showFallback(productOf(items[0]));
 
 // ---------- Nav ----------
 const nav = $("[data-nav]");
-let lastY = window.scrollY;
-window.addEventListener(
-  "scroll",
-  () =>
-    requestAnimationFrame(() => {
-      const y = window.scrollY;
-      nav.classList.toggle("is-solid", y > 40);
-      if (y > 300 && y > lastY + 4 && !nav.contains(document.activeElement) && !sheet.open) nav.classList.add("is-hidden");
-      else if (y < lastY - 4 || y <= 300) nav.classList.remove("is-hidden");
-      lastY = y;
-    }),
-  { passive: true }
+window.addEventListener("scroll", () => nav.classList.toggle("is-solid", window.scrollY > 20), { passive: true });
+
+// ---------- Reveals ----------
+const io = new IntersectionObserver(
+  (entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      en.target.classList.add("is-in");
+      io.unobserve(en.target);
+    }
+  },
+  { rootMargin: "0px 0px -12% 0px" }
 );
+$$("[data-reveal]").forEach((el) => io.observe(el));
 
-// ---------- Text splitting ----------
-$$("[data-split]").forEach((el) => {
-  const text = el.textContent.trim();
-  el.innerHTML = `<span class="sr-only">${esc(text)}</span><span aria-hidden="true">${text
-    .split(/\s+/)
-    .map((w) => `<span class="w">${[...w].map((c) => `<span class="c">${esc(c)}</span>`).join("")}</span>`)
-    .join(" ")}</span>`;
-});
-$$("[data-words]").forEach((el) => {
-  const text = el.textContent.trim();
-  el.innerHTML = `<span class="sr-only">${esc(text)}</span><span aria-hidden="true">${text
-    .split(/\s+/)
-    .map((w) => `<span class="w"><span class="wi">${esc(w)}</span></span>`)
-    .join(" ")}</span>`;
-});
+// ---------- First render ----------
+renderGrid();
+renderBag();
+updateStory();
 
-// ---------- Motion ----------
-let pinned = false;
-function initMotion() {
-  const gsap = window.gsap;
-  const ST = window.ScrollTrigger;
-  const root = document.documentElement;
-  if (!gsap || !ST || reduce) {
-    root.classList.add("is-static");
-    return;
-  }
-  root.classList.add("is-motion");
-  gsap.registerPlugin(ST);
-  if (window.Lenis) {
-    lenis = new window.Lenis({ lerp: 0.09, smoothWheel: true });
-    lenis.on("scroll", ST.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
-    gsap.ticker.lagSmoothing(0);
-    document.addEventListener("click", (e) => {
-      const a = e.target.closest('a[href^="#"]');
-      if (!a) return;
-      const target = a.getAttribute("href") === "#top" ? 0 : $(a.getAttribute("href"));
-      if (target === null) return;
-      e.preventDefault();
-      lenis.scrollTo(target, { duration: 1.4 });
-    });
-  }
-
-  // Intro: the headline letters rise, the rest follows.
-  gsap
-    .timeline({ defaults: { ease: "expo.out" }, delay: 0.15 })
-    .from(".hero__title .c", { yPercent: 120, rotate: 8, duration: 1.3, stagger: 0.022 }, 0)
-    .from(".hero [data-in]", { y: 26, opacity: 0, duration: 1.1, stagger: 0.1 }, 0.45)
-    .from(".nav__in", { y: -20, opacity: 0, duration: 1, clearProps: "transform,opacity" }, 0.3);
-  root.classList.add("is-intro");
-
-  // Headings: word by word from behind a mask. Blocks: rise in.
-  $$("[data-words]").forEach((el) =>
-    gsap.from($$(".wi", el), { yPercent: 110, duration: 1.1, ease: "expo.out", stagger: 0.04, scrollTrigger: { trigger: el, start: "top 85%", once: true } })
-  );
-  ST.batch($$("main [data-in]").filter((el) => !el.closest(".hero")), {
-    start: "top 90%",
-    once: true,
-    onEnter: (els) => gsap.from(els, { y: 36, opacity: 0, duration: 1, ease: "expo.out", stagger: 0.07 }),
-  });
-
-  // Flavours: on large screens the section is pinned and scrolling walks through the list.
-  const mm = gsap.matchMedia();
-  mm.add("(min-width: 900px)", () => {
-    pinned = true;
-    const bar = $("[data-progress]");
-    const st = ST.create({
-      trigger: "[data-lab]",
-      start: "top top",
-      end: "bottom bottom",
-      onUpdate: (self) => {
-        bar.style.transform = `scaleX(${self.progress})`;
-        const i = Math.min(items.length - 1, Math.floor(self.progress * items.length * 0.9999));
-        if (i !== active) setActive(i);
-      },
-    });
-    return () => {
-      pinned = false;
-      st.kill();
-    };
-  });
-
-  // Footer wordmark slides up letter by letter.
-  const word = $("[data-foot-word]");
-  if (word) {
-    word.innerHTML = [...word.textContent].map((c) => `<span class="c">${c === " " ? "&nbsp;" : esc(c)}</span>`).join("");
-    gsap.from($$(".c", word), { yPercent: 100, duration: 1.2, ease: "expo.out", stagger: 0.05, scrollTrigger: { trigger: word, start: "top 95%", once: true } });
-  }
-
-  window.addEventListener("load", () => ST.refresh());
-  document.fonts?.ready.then(() => ST.refresh());
-}
-initMotion();
-
-// Load the 3D pack.
+// ---------- 3D ----------
 import("./beta3d.js")
-  .then(async ({ createScene }) => {
-    scene = createScene({
-      canvas: $("[data-stage]"),
+  .then(async ({ createStage }) => {
+    const s = createStage({
+      canvas: $("[data-canvas]"),
+      items: story.map((x) => x.product),
       meats: cfg.meats,
       logoUrl: cfg.logo,
-      reduce,
-      flavours: cfg.flavours,
-      texts: { ingredients: B.pack_ingredients, list: (B._ingredients || []).join(", "), soy: B.contains_soy, made: B.pack_made },
+      stripes: cfg.flavours.map((f) => f.band),
     });
-    if (!scene) return;
-    await scene.ready;
-    scene.setAnchors($$("[data-anchor]").filter((el) => desktop() || !("desktopOnly" in el.dataset)));
-    $$("[data-drag]").forEach((el) => scene.bindDrag(el));
-    const p = productOf(items[active]);
-    scene.setAccent(accentOf(p));
-    scene.setProduct(p, { mode: "none" });
-    scene.intro();
-    for (const el of fallbacks) el.innerHTML = "";
+    if (!s) return;
+    await s.ready;
+    shots = s.snapshots(products);
+    stage = s;
+    if (reduce) stage.setDamping(1000);
+    fallbackEl.innerHTML = "";
+    stage.setAngle(angleAt(storyProgress()), { instant: true, size: sizeAt(storyProgress()) });
+    stage.start();
     document.documentElement.classList.add("has-3d");
+    renderGrid();
   })
-  .catch(() => {
-    scene = null;
-  });
+  .catch(() => {});
