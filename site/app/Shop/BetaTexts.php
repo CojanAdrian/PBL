@@ -20,22 +20,25 @@ class BetaTexts
         'beta_bar' => ['en' => 'New design (beta).', 'ro' => 'Design nou (beta).', 'ru' => 'Новый дизайн (бета).'],
         'beta_back' => ['en' => 'Back to the current site', 'ro' => 'Înapoi la site-ul actual', 'ru' => 'Вернуться на текущий сайт'],
 
-        // ---- Loader, nav, clock ----
+        // ---- Loader, nav, language, cart ----
         'loading' => ['en' => 'Firing up the kitchen', 'ro' => 'Se aprinde bucătăria', 'ru' => 'Разжигаем кухню'],
+        'nav_shop' => ['en' => 'Order', 'ro' => 'Comandă', 'ru' => 'Заказать'],
         'nav_flavours' => ['en' => 'Flavours', 'ro' => 'Arome', 'ru' => 'Вкусы'],
-        'nav_how' => ['en' => 'How to order', 'ro' => 'Cum comanzi', 'ru' => 'Как заказать'],
-        'nav_story' => ['en' => 'Ed', 'ro' => 'Ed', 'ru' => 'Эд'],
+        'nav_how' => ['en' => 'How it works', 'ro' => 'Cum funcționează', 'ru' => 'Как это работает'],
+        'nav_story' => ['en' => 'Who’s Ed', 'ro' => 'Cine e Ed', 'ru' => 'Кто такой Эд'],
         'nav_faq' => ['en' => 'Questions', 'ro' => 'Întrebări', 'ru' => 'Вопросы'],
-        'pull' => ['en' => 'Pull me', 'ro' => 'Trage', 'ru' => 'Потяни'],
-        'pull_order' => ['en' => 'Your order', 'ro' => 'Comanda ta', 'ru' => 'Ваш заказ'],
-        'clock_place' => ['en' => 'Ed’s kitchen, Moldova', 'ro' => 'Bucătăria lui Ed, Moldova', 'ru' => 'Кухня Эда, Молдова'],
-        'clock_open' => ['en' => 'Taking orders', 'ro' => 'Primim comenzi', 'ru' => 'Принимаем заказы'],
+        'nav_menu' => ['en' => 'Menu', 'ro' => 'Meniu', 'ru' => 'Меню'],
+        'lang_label' => ['en' => 'Language', 'ro' => 'Limba', 'ru' => 'Язык'],
+        'cart' => ['en' => 'Cart', 'ro' => 'Coș', 'ru' => 'Корзина'],
+        'cart_empty' => ['en' => 'Empty', 'ro' => 'Gol', 'ru' => 'Пусто'],
+        'cart_open' => ['en' => 'Open your cart', 'ro' => 'Deschide coșul', 'ru' => 'Открыть корзину'],
+        'checkout' => ['en' => 'Checkout', 'ro' => 'Finalizează', 'ru' => 'Оформить'],
 
         // ---- Hero ----
         'hero_kicker' => ['en' => 'Beef & chicken jerky', 'ro' => 'Jerky de vită și de pui', 'ru' => 'Джерки из говядины и курицы'],
         'hero_line' => ['en' => 'Made by hand, after dark, in one kitchen in Moldova.', 'ro' => 'Făcut manual, noaptea târziu, într-o singură bucătărie din Moldova.', 'ru' => 'Сделано вручную, поздно ночью, на одной кухне в Молдове.'],
-        'hero_cta' => ['en' => 'Pick your flavour', 'ro' => 'Alege-ți aroma', 'ru' => 'Выбрать вкус'],
-        'hero_from' => ['en' => 'from {price} · pay at the door', 'ro' => 'de la {price} · plătești la ușă', 'ru' => 'от {price} · оплата при получении'],
+        'hero_cta' => ['en' => 'Click to order', 'ro' => 'Comandă acum', 'ru' => 'Заказать'],
+        'hero_note' => ['en' => 'From {price} · Pay at the door', 'ro' => 'De la {price} · Plătești la ușă', 'ru' => 'От {price} · Оплата при получении'],
 
         // ---- Tapes ----
         'tape_1' => ['en' => 'Handmade in Moldova', 'ro' => 'Făcut manual în Moldova', 'ru' => 'Ручная работа, Молдова'],
@@ -46,16 +49,37 @@ class BetaTexts
         // ---- How to order ----
         'how_kicker' => ['en' => 'Ordering takes a minute', 'ro' => 'Comanda durează un minut', 'ru' => 'Заказ за минуту'],
         'how_1' => ['en' => 'Pick', 'ro' => 'Alegi', 'ru' => 'Выбери'],
-        'how_1_d' => ['en' => 'Tap + on a flavour. Beef or chicken, as many packs as you want.', 'ro' => 'Apeși + la o aromă. Vită sau pui, câte pachete vrei.', 'ru' => 'Нажми + у вкуса. Говядина или курица, сколько угодно упаковок.'],
+        'how_1_d' => ['en' => 'Choose beef or chicken and tap Add on the flavours you want.', 'ro' => 'Alegi vită sau pui și apeși Adaugă la aromele dorite.', 'ru' => 'Выбери говядину или курицу и нажми «Добавить» у нужных вкусов.'],
         'how_2' => ['en' => 'Send', 'ro' => 'Trimiți', 'ru' => 'Отправь'],
-        'how_2_d' => ['en' => 'Open your order, leave your name and phone. No account, no card.', 'ro' => 'Deschizi comanda, lași numele și telefonul. Fără cont, fără card.', 'ru' => 'Откройте заказ, оставьте имя и телефон. Без регистрации и карты.'],
+        'how_2_d' => ['en' => 'Open the cart, leave your name and phone. No account, no card.', 'ro' => 'Deschizi coșul, lași numele și telefonul. Fără cont, fără card.', 'ru' => 'Открой корзину, оставь имя и телефон. Без регистрации и карты.'],
         'how_3' => ['en' => 'Eat', 'ro' => 'Mănânci', 'ru' => 'Ешь'],
         'how_3_d' => ['en' => 'Ed calls to set the day, brings it to you, and you pay at the door.', 'ro' => 'Ed te sună pentru zi, ți-l aduce, iar plătești la ușă.', 'ru' => 'Эд позвонит, договорится о дне, привезёт, и ты заплатишь при получении.'],
 
-        // ---- Flavours ----
-        'flav_kicker' => ['en' => 'The flavours', 'ro' => 'Aromele', 'ru' => 'Вкусы'],
-        'flav_title' => ['en' => 'Three flavours. Two meats.', 'ro' => 'Trei arome. Două cărnuri.', 'ru' => 'Три вкуса. Два вида мяса.'],
-        'flav_lead' => ['en' => 'Every pack is {g} g. Tap + to add it to your order.', 'ro' => 'Fiecare pachet are {g} g. Apasă + ca să-l adaugi în comandă.', 'ru' => 'В каждой упаковке {g} г. Нажми +, чтобы добавить в заказ.'],
+        // ---- Shop (the lineup) ----
+        'shop_kicker' => ['en' => 'Order here', 'ro' => 'Comandă aici', 'ru' => 'Заказ здесь'],
+        'shop_title' => ['en' => 'Pick your jerky.', 'ro' => 'Alege-ți jerky-ul.', 'ru' => 'Выбери своё джерки.'],
+        'shop_lead' => ['en' => 'Choose the meat, then tap Add. Every pack is {g} g. You pay at the door.', 'ro' => 'Alege carnea, apoi apasă Adaugă. Fiecare pachet are {g} g. Plătești la ușă.', 'ru' => 'Выбери мясо и нажми «Добавить». В каждой упаковке {g} г. Оплата при получении.'],
+        'meat_label' => ['en' => 'Meat', 'ro' => 'Carne', 'ru' => 'Мясо'],
+        'mood_label' => ['en' => 'In the mood for', 'ro' => 'Ai poftă de', 'ru' => 'Хочется'],
+        'mood_sweet' => ['en' => 'Sweet', 'ro' => 'Dulce', 'ru' => 'Сладкого'],
+        'mood_smoky' => ['en' => 'Smoky', 'ro' => 'Afumat', 'ru' => 'Дымного'],
+        'mood_savoury' => ['en' => 'Savoury', 'ro' => 'Savuros', 'ru' => 'Пряного'],
+        'mood_hot' => ['en' => 'Hot', 'ro' => 'Iute', 'ru' => 'Острого'],
+        'mood_any' => ['en' => 'Can’t decide', 'ro' => 'Nu mă pot decide', 'ru' => 'Не знаю'],
+        'taste_sweet' => ['en' => 'Sweet', 'ro' => 'Dulce', 'ru' => 'Сладость'],
+        'taste_smoky' => ['en' => 'Smoky', 'ro' => 'Afumat', 'ru' => 'Дымок'],
+        'taste_garlic' => ['en' => 'Garlic', 'ro' => 'Usturoi', 'ru' => 'Чеснок'],
+        'taste_heat' => ['en' => 'Heat', 'ro' => 'Iuțeală', 'ru' => 'Острота'],
+        'add' => ['en' => 'Add', 'ro' => 'Adaugă', 'ru' => 'Добавить'],
+        'add_cart' => ['en' => 'Add to cart', 'ro' => 'Adaugă în coș', 'ru' => 'В корзину'],
+        'in_cart' => ['en' => 'in cart', 'ro' => 'în coș', 'ru' => 'в корзине'],
+        'go_checkout' => ['en' => 'Go to checkout', 'ro' => 'Mergi la comandă', 'ru' => 'Перейти к оформлению'],
+        'taster_meta' => ['en' => '6 packs × 50 g · beef & chicken', 'ro' => '6 pachete × 50 g · vită și pui', 'ru' => '6 упаковок × 50 г · говядина и курица'],
+        'taster_lead' => ['en' => 'Can’t decide? A 50 g pack of every flavour, beef and chicken.', 'ro' => 'Nu te poți decide? Câte un pachet de 50 g din fiecare aromă, vită și pui.', 'ru' => 'Не можете выбрать? По упаковке 50 г каждого вкуса, говядина и курица.'],
+
+        // ---- Up close (flavour chapters) ----
+        'flav_kicker' => ['en' => 'Up close', 'ro' => 'De aproape', 'ru' => 'Крупным планом'],
+        'flav_title' => ['en' => 'Every flavour, up close.', 'ro' => 'Fiecare aromă, de aproape.', 'ru' => 'Каждый вкус крупным планом.'],
         'flavour_texas_word' => ['en' => 'Smoke', 'ro' => 'Fum', 'ru' => 'Дым'],
         'flavour_garlic_word' => ['en' => 'Garlic', 'ro' => 'Usturoi', 'ru' => 'Чеснок'],
         'flavour_honey_word' => ['en' => 'Fire', 'ro' => 'Foc', 'ru' => 'Огонь'],
@@ -67,12 +91,16 @@ class BetaTexts
         'heat_4' => ['en' => 'Hot', 'ro' => 'Iute', 'ru' => 'Острый'],
         'heat_5' => ['en' => 'Very hot', 'ro' => 'Foarte iute', 'ru' => 'Очень острый'],
         'add_meat' => ['en' => 'Add {meat}', 'ro' => 'Adaugă {meat}', 'ru' => 'Добавить: {meat}'],
-        'in_order' => ['en' => 'in order', 'ro' => 'în comandă', 'ru' => 'в заказе'],
+        'in_order' => ['en' => 'in cart', 'ro' => 'în coș', 'ru' => 'в корзине'],
         'fewer' => ['en' => 'One fewer {name}', 'ro' => 'Cu unul mai puțin: {name}', 'ru' => 'На одну меньше: {name}'],
         'more' => ['en' => 'One more {name}', 'ro' => 'Încă unul: {name}', 'ru' => 'Ещё одну: {name}'],
         'pack_alt' => ['en' => 'The {name} pack', 'ro' => 'Pachetul {name}', 'ru' => 'Упаковка {name}'],
-        'taster_lead' => ['en' => 'Can’t decide? A 50 g pack of every flavour, beef and chicken.', 'ro' => 'Nu te poți decide? Câte un pachet de 50 g din fiecare aromă, vită și pui.', 'ru' => 'Не можете выбрать? По упаковке 50 г каждого вкуса, говядина и курица.'],
-        'add' => ['en' => 'Add', 'ro' => 'Adaugă', 'ru' => 'Добавить'],
+
+        // ---- Click to order bands ----
+        'cta_1_big' => ['en' => 'Click to order', 'ro' => 'Comandă acum', 'ru' => 'Заказать'],
+        'cta_1_small' => ['en' => 'Pick your packs. Pay at the door.', 'ro' => 'Alege pachetele. Plătești la ușă.', 'ru' => 'Выбери упаковки. Оплата при получении.'],
+        'cta_2_big' => ['en' => 'Hungry yet?', 'ro' => 'Ți-e foame?', 'ru' => 'Проголодался?'],
+        'cta_2_small' => ['en' => 'Click to order. It takes a minute.', 'ro' => 'Comandă acum. Durează un minut.', 'ru' => 'Закажи сейчас. Это займёт минуту.'],
 
         // ---- Inspector ----
         'inspect_kicker' => ['en' => 'Turn it over', 'ro' => 'Întoarce-l', 'ru' => 'Переверни'],
@@ -87,19 +115,27 @@ class BetaTexts
         'store' => ['en' => 'Keep in a cool, dry place.', 'ro' => 'A se păstra la loc răcoros și uscat.', 'ru' => 'Хранить в прохладном сухом месте.'],
         'made' => ['en' => 'Made by hand in Moldova', 'ro' => 'Făcut manual în Moldova', 'ru' => 'Сделано вручную в Молдове'],
 
-        // ---- Ed ----
-        'story_kicker' => ['en' => 'Who is Ed', 'ro' => 'Cine e Ed', 'ru' => 'Кто такой Эд'],
-        'story_title_1' => ['en' => 'Some call it a snack.', 'ro' => 'Unii îi zic gustare.', 'ru' => 'Кто-то называет это закуской.'],
-        'story_title_2' => ['en' => 'Ed calls it a craft.', 'ro' => 'Ed îi zice meserie.', 'ru' => 'Эд называет это ремеслом.'],
-        'story_text' => ['en' => 'No factory. One kitchen, premium beef and chicken, and nights of slicing, marinating and slow drying. The man who makes your jerky is the man who calls you and brings it to your door.', 'ro' => 'Nicio fabrică. O bucătărie, carne premium de vită și de pui și nopți întregi de tăiat, marinat și uscat încet. Cel care îți face jerky-ul e cel care te sună și ți-l aduce la ușă.', 'ru' => 'Никакой фабрики. Одна кухня, отборная говядина и курица и ночи нарезки, маринада и медленной сушки. Тот, кто делает ваше джерки, сам звонит вам и привозит его к двери.'],
-        'fact_1_t' => ['en' => 'Sliced by hand', 'ro' => 'Tăiat manual', 'ru' => 'Нарезано вручную'],
-        'fact_1_d' => ['en' => 'Lean cuts, thin strips, one by one.', 'ro' => 'Bucăți slabe, fâșii subțiri, una câte una.', 'ru' => 'Нежирное мясо, тонкие полоски, одна за другой.'],
-        'fact_2_t' => ['en' => 'Its own marinade', 'ro' => 'Marinadă proprie', 'ru' => 'Свой маринад'],
-        'fact_2_d' => ['en' => 'Every flavour is marinated separately.', 'ro' => 'Fiecare aromă e marinată separat.', 'ru' => 'Каждый вкус маринуется отдельно.'],
-        'fact_3_t' => ['en' => 'Dried slow', 'ro' => 'Uscat încet', 'ru' => 'Медленная сушка'],
-        'fact_3_d' => ['en' => 'Hours, not minutes. Chewy, not hard.', 'ro' => 'Ore, nu minute. Elastic, nu tare.', 'ru' => 'Часы, а не минуты. Упругое, а не жёсткое.'],
-        'fact_4_t' => ['en' => 'Brought by Ed', 'ro' => 'Adus de Ed', 'ru' => 'Привозит Эд'],
-        'fact_4_d' => ['en' => 'He delivers it himself. You pay at the door.', 'ro' => 'Îl livrează chiar el. Plătești la ușă.', 'ru' => 'Он привозит сам. Оплата при получении.'],
+        // ---- Who's Ed ----
+        'ed_kicker' => ['en' => 'Who’s Ed', 'ro' => 'Cine e Ed', 'ru' => 'Кто такой Эд'],
+        'ed_title' => ['en' => 'One man. One kitchen. No shortcuts.', 'ro' => 'Un om. O bucătărie. Fără scurtături.', 'ru' => 'Один человек. Одна кухня. Без компромиссов.'],
+        'ed_text' => ['en' => 'Ed doesn’t run a factory. He runs a kitchen, after dark, with premium beef and chicken, a sharp knife and a lot of patience. Every strip is sliced by hand, every flavour gets its own marinade, and everything dries slowly until it’s right. Then he packs it, calls you, and drives it to your door himself.', 'ro' => 'Ed nu are o fabrică. Are o bucătărie, noaptea târziu, carne premium de vită și de pui, un cuțit ascuțit și multă răbdare. Fiecare fâșie e tăiată manual, fiecare aromă are marinada ei și totul se usucă încet, până e exact cum trebuie. Apoi îl ambalează, te sună și ți-l aduce chiar el la ușă.', 'ru' => 'У Эда нет фабрики. У него есть кухня, поздняя ночь, отборная говядина и курица, острый нож и много терпения. Каждая полоска нарезается вручную, у каждого вкуса свой маринад, и всё медленно сушится, пока не станет как надо. Потом он упаковывает, звонит вам и сам привозит заказ к двери.'],
+        'facts_title' => ['en' => 'Ed Facts', 'ro' => 'Fișa lui Ed', 'ru' => 'Факты об Эде'],
+        'facts_serving' => ['en' => 'Serving size: one man, one kitchen', 'ro' => 'Porție: un om, o bucătărie', 'ru' => 'Порция: один человек, одна кухня'],
+        'facts_1_k' => ['en' => 'Slicing', 'ro' => 'Tăiere', 'ru' => 'Нарезка'],
+        'facts_1_v' => ['en' => 'By hand', 'ro' => 'Manual', 'ru' => 'Вручную'],
+        'facts_2_k' => ['en' => 'Marinade', 'ro' => 'Marinadă', 'ru' => 'Маринад'],
+        'facts_2_v' => ['en' => 'One per flavour', 'ro' => 'Una pentru fiecare aromă', 'ru' => 'Свой для каждого вкуса'],
+        'facts_3_k' => ['en' => 'Drying', 'ro' => 'Uscare', 'ru' => 'Сушка'],
+        'facts_3_v' => ['en' => 'Slow', 'ro' => 'Lentă', 'ru' => 'Медленная'],
+        'facts_4_k' => ['en' => 'Batch size', 'ro' => 'Mărimea lotului', 'ru' => 'Размер партии'],
+        'facts_4_v' => ['en' => 'Small', 'ro' => 'Mică', 'ru' => 'Небольшой'],
+        'facts_5_k' => ['en' => 'Factories', 'ro' => 'Fabrici', 'ru' => 'Фабрик'],
+        'facts_5_v' => ['en' => '0', 'ro' => '0', 'ru' => '0'],
+        'facts_6_k' => ['en' => 'Delivered by', 'ro' => 'Livrat de', 'ru' => 'Доставляет'],
+        'facts_6_v' => ['en' => 'Ed himself', 'ro' => 'Ed personal', 'ru' => 'Сам Эд'],
+        'facts_7_k' => ['en' => 'Payment', 'ro' => 'Plata', 'ru' => 'Оплата'],
+        'facts_7_v' => ['en' => 'At the door', 'ro' => 'La ușă', 'ru' => 'При получении'],
+        'facts_note' => ['en' => 'Contains soy. Contains no shortcuts.', 'ro' => 'Conține soia. Nu conține scurtături.', 'ru' => 'Содержит сою. Не содержит компромиссов.'],
 
         // ---- FAQ ----
         'faq_title' => ['en' => 'Questions', 'ro' => 'Întrebări', 'ru' => 'Вопросы'],
@@ -114,10 +150,10 @@ class BetaTexts
         'faq_5_q' => ['en' => 'Allergens?', 'ro' => 'Alergeni?', 'ru' => 'Аллергены?'],
         'faq_5_a' => ['en' => 'Every flavour contains soy. If you have another allergy, write it in the note and Ed will tell you what is safe.', 'ro' => 'Toate aromele conțin soia. Dacă ai altă alergie, scrie-o în notă și Ed îți spune ce poți mânca.', 'ru' => 'Все вкусы содержат сою. Если у вас другая аллергия, напишите об этом в примечании, и Эд подскажет, что вам подходит.'],
 
-        // ---- Order drawer ----
-        'sheet_title' => ['en' => 'Your order', 'ro' => 'Comanda ta', 'ru' => 'Ваш заказ'],
+        // ---- Cart drawer ----
+        'sheet_title' => ['en' => 'Your cart', 'ro' => 'Coșul tău', 'ru' => 'Ваша корзина'],
         'sheet_close' => ['en' => 'Close', 'ro' => 'Închide', 'ru' => 'Закрыть'],
-        'sheet_empty' => ['en' => 'Empty for now. Tap + on a flavour.', 'ro' => 'Deocamdată goală. Apasă + la o aromă.', 'ru' => 'Пока пусто. Нажмите + у вкуса.'],
+        'sheet_empty' => ['en' => 'Your cart is empty. Pick a flavour first.', 'ro' => 'Coșul e gol. Alege mai întâi o aromă.', 'ru' => 'Корзина пуста. Сначала выберите вкус.'],
         'sheet_browse' => ['en' => 'See the flavours', 'ro' => 'Vezi aromele', 'ru' => 'Смотреть вкусы'],
         'remove' => ['en' => 'Remove', 'ro' => 'Scoate', 'ru' => 'Убрать'],
         'total' => ['en' => 'Total', 'ro' => 'Total', 'ru' => 'Итого'],

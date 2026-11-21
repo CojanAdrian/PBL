@@ -66,7 +66,7 @@ function paintFront(p, meat, logo) {
   ctx.fillStyle = p.bandText || "#fff";
   ctx.letterSpacing = `${W * 0.006}px`;
   const name = p.name.toUpperCase();
-  const s = fitFont(ctx, name, W * 0.86, W * 0.12, (z) => `400 ${z}px Anton, Impact, sans-serif`);
+  const s = fitFont(ctx, name, W * 0.86, W * 0.12, (z) => `700 ${z}px Oswald, Impact, sans-serif`);
   ctx.fillText(name, W / 2, H * 0.778 + s * 0.36);
   ctx.fillStyle = "rgba(255,255,255,.55)";
   ctx.letterSpacing = `${W * 0.01}px`;
@@ -85,7 +85,7 @@ function paintBack(p, meat, texts) {
   ctx.fillRect(W * 0.11, H * 0.15, W * 0.78, H * 0.52);
   ctx.fillStyle = "#16120f";
   ctx.textAlign = "left";
-  ctx.font = `400 ${W * 0.075}px Anton, Impact, sans-serif`;
+  ctx.font = `700 ${W * 0.075}px Oswald, Impact, sans-serif`;
   ctx.fillText(texts.ingredients.toUpperCase(), W * 0.16, H * 0.22);
   ctx.fillRect(W * 0.16, H * 0.235, W * 0.68, 6);
   ctx.font = `600 ${W * 0.038}px Manrope, sans-serif`;
@@ -136,7 +136,7 @@ function paintBox(box, stripes, logo) {
   ctx.textAlign = "center";
   ctx.letterSpacing = `${W * 0.006}px`;
   const name = box.name.toUpperCase();
-  const s = fitFont(ctx, name, W * 0.86, W * 0.11, (z) => `400 ${z}px Anton, Impact, sans-serif`);
+  const s = fitFont(ctx, name, W * 0.86, W * 0.11, (z) => `700 ${z}px Oswald, Impact, sans-serif`);
   ctx.fillText(name, W / 2, H * 0.66 + s * 0.3);
   const w = W / stripes.length;
   stripes.forEach((col, i) => {
@@ -231,19 +231,19 @@ function setup(canvas, { alpha = true } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha, preserveDrawingBuffer: false, powerPreference: "high-performance" });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 0.95;
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.03).texture;
   const camera = new THREE.PerspectiveCamera(22, 1, 0.1, 100);
-  const key = new THREE.DirectionalLight("#fff3e8", 2.4);
+  const key = new THREE.DirectionalLight("#fff3e8", 2.1);
   key.position.set(-3.2, 4, 6);
   scene.add(key);
-  const rimL = new THREE.DirectionalLight("#ffd9c2", 2.6);
+  const rimL = new THREE.DirectionalLight("#ffb27a", 1.7);
   rimL.position.set(-5, 2.5, -4);
   scene.add(rimL);
-  const rimR = new THREE.DirectionalLight("#ffffff", 2);
+  const rimR = new THREE.DirectionalLight("#ffe2c4", 1.2);
   rimR.position.set(5.5, 1, -3.5);
   scene.add(rimR);
   const fillL = new THREE.DirectionalLight("#ffffff", 0.5);
@@ -262,7 +262,7 @@ function makeLibrary(renderer, { meats, logo, texts, stripes }) {
   };
   const bump = crinkleMap();
   const foil = (opts) =>
-    new THREE.MeshPhysicalMaterial({ roughness: 0.3, metalness: 0.32, clearcoat: 1, clearcoatRoughness: 0.14, envMapIntensity: 0.6, bumpMap: bump, bumpScale: 0.6, ...opts });
+    new THREE.MeshPhysicalMaterial({ roughness: 0.62, metalness: 0.04, clearcoat: 0.18, clearcoatRoughness: 0.55, sheen: 0.1, sheenRoughness: 0.85, sheenColor: new THREE.Color("#ffffff"), envMapIntensity: 0.26, bumpMap: bump, bumpScale: 0.35, ...opts });
   const pouchGeo = pouchGeometry();
   const boxGeo = new THREE.BoxGeometry(2.4, 2.4, 1.1, 1, 1, 1);
   const cache = new Map();
@@ -293,7 +293,7 @@ export function loadAssets(logoUrl) {
       img.onerror = () => res(null);
       img.src = logoUrl;
     }),
-    document.fonts ? Promise.all([document.fonts.load("400 100px Anton"), document.fonts.load("800 40px Manrope"), document.fonts.load("600 40px Manrope")]).catch(() => {}) : Promise.resolve(),
+    document.fonts ? Promise.all([document.fonts.load("700 100px Oswald"), document.fonts.load("800 40px Manrope"), document.fonts.load("600 40px Manrope")]).catch(() => {}) : Promise.resolve(),
   ]).then(([logo]) => logo);
 }
 
