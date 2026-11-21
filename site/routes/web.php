@@ -35,6 +35,8 @@ Route::prefix('{locale}')
     ->middleware('setLocale')
     ->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('front.index');
+        // The redesign, tested here before it replaces the main page (not indexed by search engines).
+        Route::get('/betatest', [HomeController::class, 'beta'])->name('front.beta');
 
         // Big Ed's Jerky is one page. The starter's other pages (services, news, contact,
         // FAQ, terms, privacy) are switched off; their controllers and views are still here.
