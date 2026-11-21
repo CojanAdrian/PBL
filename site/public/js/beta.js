@@ -972,7 +972,8 @@ function initMotion() {
     once: true,
     onEnter: (els) => {
       gsap.from(els, { y: 80, opacity: 0, duration: 1.1, ease: "power3.out", stagger: 0.09, clearProps: "transform,opacity" });
-      gsap.from(els.map((el) => $(".card__tilt", el)), { yPercent: -30, rotate: -10, duration: 1.3, ease: "back.out(1.6)", stagger: 0.09, delay: 0.1, clearProps: "transform" });
+      // The pack drops onto its card. Animates the inner layer, which nothing else moves.
+      gsap.fromTo(els.map((el) => $(".card__flip", el)), { yPercent: -24, rotate: -8, opacity: 0 }, { yPercent: 0, rotate: 0, opacity: 1, duration: 1.1, ease: "power3.out", stagger: 0.09, delay: 0.08, clearProps: "transform,opacity" });
     },
   });
 

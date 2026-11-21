@@ -1274,7 +1274,11 @@ html:lang(ru) .meat-switch b {
   position: absolute;
   inset: 8% 14% 2%;
   transform: rotateX(var(--rx)) rotateY(var(--ry));
-  transition: transform 0.35s var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card__tilt {
+    transition: transform 0.35s var(--ease);
+  }
 }
 .card__flip {
   position: absolute;
