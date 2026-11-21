@@ -298,7 +298,7 @@ export function loadAssets(logoUrl) {
 }
 
 // ---------- Live viewer ----------
-export function createViewer(canvas, { meats = [], logo = null, texts, stripes = [], mode = "hero", fill = 0.62, reduce = false } = {}) {
+export function createViewer(canvas, { meats = [], logo = null, texts, stripes = [], mode = "hero", fill = 0.62, reduce = false, idle: idleOn = true, maxDpr = 2 } = {}) {
   let parts;
   try {
     parts = setup(canvas);
@@ -306,7 +306,7 @@ export function createViewer(canvas, { meats = [], logo = null, texts, stripes =
     return null;
   }
   const { renderer, scene, camera } = parts;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
   renderer.setPixelRatio(dpr);
   const meshFor = makeLibrary(renderer, { meats, logo, texts, stripes });
   const holder = new THREE.Group();
@@ -348,7 +348,7 @@ export function createViewer(canvas, { meats = [], logo = null, texts, stripes =
   let visible = true;
   let raf = 0;
   let last = 0;
-  const idle = mode === "hero" && !reduce;
+  const idle = mode === "hero" && !reduce && idleOn;
 
   function wake() {
     if (!raf && visible) {

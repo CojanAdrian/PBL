@@ -10,6 +10,9 @@ import { t, packs } from "./i18n.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+// Phones and tablets: native scrolling, fewer scroll-linked effects, cheaper 3D.
+const touch = window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 899px)").matches;
+if (touch) document.documentElement.classList.add("is-touch");
 const cfg = JSON.parse($("#menu-data").textContent);
 const B = JSON.parse($("#beta-texts").textContent);
 prepareMenu(cfg);
@@ -307,7 +310,11 @@ function renderChapters() {
             .join("")}</div>`
         : `<div class="chap__packs">${it.group.items.map((x, k) => packImg(x, `chap__pack chap__pack--${k ? "b" : "a"}`)).join("")}</div>`;
       const buys = it.box ? buyRow(box, box.name) : it.group.items.map((x) => buyRow(x, x.meatName)).join("");
-      return `<article class="chap" data-chap="${i}" data-bg="${m.bg}" data-ink="${m.ink}" data-accent="${m.accent}" aria-labelledby="chap-${i}">
+      // The colour blend into the next chapter is painted once into the background
+      // (no work while scrolling): own colour, then a long fade into the next one.
+      const next = chapterItems[i + 1] ? moodOf(chapterItems[i + 1].p) : { bg: "#0b0706" };
+      const top = i === 0 ? "#0b0706" : m.bg;
+      return `<article class="chap" data-chap="${i}" style="--top:${top};--bg:${m.bg};--page:${m.bg};--next:${next.bg};--ink:${m.ink};--accent:${m.accent}" aria-labelledby="chap-${i}">
           <p class="chap__word" aria-hidden="true"><span>${esc(word)}</span></p>
           ${packsHTML}
           <div class="chap__info">
@@ -727,7 +734,8 @@ document.addEventListener(
 // Film grain: a few frames of fine noise, cycled like real film.
 // ======================================================================
 function makeGrain() {
-  if (reduce) return;
+  // Phones get a still, light grain from CSS; the animated one costs too much there.
+  if (reduce || touch) return;
   const S = 256;
   const F = 6;
   const c = document.createElement("canvas");
@@ -748,51 +756,8 @@ function makeGrain() {
 }
 makeGrain();
 
-// ======================================================================
-// Page colour: blends smoothly from one flavour chapter to the next.
-// ======================================================================
 const root = document.documentElement;
-const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-const NIGHT = { bg: "#0b0706", ink: "#f6e6cc", accent: "#e97f0e" };
-function mixColour(a, z, k) {
-  const A = hex(a);
-  const Z = hex(z);
-  return `rgb(${A.map((v, i) => Math.round(lerp(v, Z[i], k))).join(",")})`;
-}
 let chapList = [];
-function updateMood() {
-  const mid = innerHeight / 2;
-  // Each chapter "owns" the colour while its middle is near the screen's middle.
-  let best = null;
-  let k = 0;
-  for (let i = 0; i < chapList.length; i++) {
-    const r = chapList[i].getBoundingClientRect();
-    if (r.top <= mid && r.bottom >= mid) {
-      best = i;
-      // In the last 35% of a chapter, start blending into the next one (or back to night).
-      const p = (mid - r.top) / r.height;
-      k = clamp((p - 0.65) / 0.35);
-      break;
-    }
-  }
-  let from = NIGHT;
-  let to = NIGHT;
-  if (best === null) {
-    const first = chapList[0]?.getBoundingClientRect();
-    // Fade in from night as the first chapter arrives.
-    if (first && first.top > mid && first.top < mid + innerHeight * 0.5) {
-      to = chapList[0].dataset;
-      k = 1 - (first.top - mid) / (innerHeight * 0.5);
-    } else k = 0;
-  } else {
-    from = chapList[best].dataset;
-    to = chapList[best + 1]?.dataset || NIGHT;
-  }
-  const e = k * k * (3 - 2 * k);
-  root.style.setProperty("--page", mixColour(from.bg, to.bg, e));
-  root.style.setProperty("--ink", mixColour(from.ink, to.ink, e));
-  root.style.setProperty("--accent", mixColour(from.accent, to.accent, e));
-}
 
 // ======================================================================
 // 3D: hero pack and inspector (still images if WebGL is missing)
@@ -835,7 +800,7 @@ const threeReady = import("./beta3d.js")
       return;
     }
     const opts = { meats: cfg.meats, logo, texts: texts3d, stripes, reduce };
-    heroViewer = mod.createViewer($("[data-hero-canvas]"), { ...opts, mode: "hero", fill: 0.74 });
+    heroViewer = mod.createViewer($("[data-hero-canvas]"), { ...opts, mode: "hero", fill: 0.74, idle: !touch, maxDpr: touch ? 1.5 : 2 });
     if (heroViewer) {
       heroViewer.setProduct(heroProducts[0], { animate: false });
       root.classList.add("has-3d");
@@ -845,7 +810,7 @@ const threeReady = import("./beta3d.js")
         heroViewer.setProduct(heroProducts[h]);
       });
     }
-    inspectViewer = mod.createViewer($("[data-inspect-canvas]"), { ...opts, mode: "inspect", fill: 0.7 });
+    inspectViewer = mod.createViewer($("[data-inspect-canvas]"), { ...opts, mode: "inspect", fill: 0.7, maxDpr: touch ? 1.5 : 2 });
     if (inspectViewer) {
       inspectViewer.setProduct(inspectProduct, { animate: false });
       inspectViewer.onTurn(() => markFace(inspectViewer.faceIndex === 3 ? 1 : inspectViewer.faceIndex));
@@ -888,20 +853,6 @@ $$("[data-words]").forEach((el) => {
     .map((w) => `<span class="word">${esc(w)}</span>`)
     .join(" ")}</span>`;
 });
-let moodTick = false;
-window.addEventListener(
-  "scroll",
-  () => {
-    if (moodTick) return;
-    moodTick = true;
-    requestAnimationFrame(() => {
-      moodTick = false;
-      updateMood();
-    });
-  },
-  { passive: true }
-);
-updateMood();
 
 // ======================================================================
 // Loader + motion
@@ -956,7 +907,9 @@ function initMotion() {
   }
   root.classList.add("is-motion");
   gsap.registerPlugin(ST);
-  if (window.Lenis) {
+  // The address bar showing/hiding must not make every scroll effect re-measure.
+  ST.config({ ignoreMobileResize: true });
+  if (window.Lenis && !touch) {
     lenis = new window.Lenis({ lerp: 0.085, wheelMultiplier: 0.95 });
     lenis.on("scroll", ST.update);
     gsap.ticker.add((time) => lenis.raf(time * 1000));
@@ -981,27 +934,29 @@ function initMotion() {
       fy((e.clientY / innerHeight - 0.5) * 20);
     });
   }
-  gsap.to(".hero__copy", { yPercent: -12, opacity: 0.15, ease: "none", scrollTrigger: { trigger: ".hero", start: "20% top", end: "bottom top", scrub: true } });
-  gsap.to(".hero__stage", { yPercent: 14, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+  // Phones: one-shot animations instead of effects tied to every scroll frame.
+  const scrub = (opts) => (touch ? { trigger: opts.trigger, start: "top 85%", once: true } : opts);
+  if (!touch) gsap.to(".hero__copy", { yPercent: -12, opacity: 0.15, ease: "none", scrollTrigger: { trigger: ".hero", start: "20% top", end: "bottom top", scrub: true } });
+  if (!touch) gsap.to(".hero__stage", { yPercent: 14, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
 
   // Tapes drift and speed up with scroll.
   $$("[data-tape]").forEach((track) => {
     const dir = Number(track.dataset.dir || 1);
     const loop = gsap.fromTo(track, { xPercent: dir > 0 ? 0 : -50 }, { xPercent: dir > 0 ? -50 : 0, ease: "none", duration: 36, repeat: -1 });
-    ST.create({ trigger: ".tapes", start: "top bottom", end: "bottom top", onUpdate: (self) => loop.timeScale(1 + Math.min(Math.abs(self.getVelocity()) / 260, 6)) });
+    if (!touch) ST.create({ trigger: ".tapes", start: "top bottom", end: "bottom top", onUpdate: (self) => loop.timeScale(1 + Math.min(Math.abs(self.getVelocity()) / 260, 6)) });
   });
 
   // The order bands: the words run, faster with scroll.
   $$("[data-band]").forEach((band) => {
     const track = $(".band__track", band);
     const loop = gsap.to(track, { xPercent: -50, ease: "none", duration: 22, repeat: -1 });
-    ST.create({ trigger: band, start: "top bottom", end: "bottom top", onUpdate: (self) => loop.timeScale(1 + Math.min(Math.abs(self.getVelocity()) / 300, 5)) });
-    gsap.fromTo(band, { clipPath: "inset(0 50% 0 50%)" }, { clipPath: "inset(0 0% 0 0%)", ease: "power2.out", scrollTrigger: { trigger: band, start: "top 95%", end: "top 55%", scrub: 0.6 } });
+    if (!touch) ST.create({ trigger: band, start: "top bottom", end: "bottom top", onUpdate: (self) => loop.timeScale(1 + Math.min(Math.abs(self.getVelocity()) / 300, 5)) });
+    if (!touch) gsap.fromTo(band, { clipPath: "inset(0 50% 0 50%)" }, { clipPath: "inset(0 0% 0 0%)", ease: "power2.out", scrollTrigger: { trigger: band, start: "top 95%", end: "top 55%", scrub: 0.6 } });
   });
 
   // How to order: the giant words slide in.
   $$("[data-how]").forEach((row, i) => {
-    gsap.fromTo($(".how__word", row), { xPercent: i % 2 ? 30 : -30, opacity: 0.1 }, { xPercent: 0, opacity: 1, ease: "power2.out", scrollTrigger: { trigger: row, start: "top 95%", end: "top 50%", scrub: 0.8 } });
+    gsap.fromTo($(".how__word", row), { xPercent: i % 2 ? 30 : -30, opacity: 0.1 }, { xPercent: 0, opacity: 1, ease: "power2.out", duration: 1.1, scrollTrigger: scrub({ trigger: row, start: "top 95%", end: "top 50%", scrub: 0.8 }) });
     gsap.from([$(".how__n", row), $(".how__d", row)], { opacity: 0, y: 20, duration: 0.9, ease: "power3.out", stagger: 0.1, scrollTrigger: { trigger: row, start: "top 72%", once: true } });
   });
 
@@ -1024,13 +979,13 @@ function initMotion() {
   // Chapters: the giant word slides across, the packs swing in, the info rises.
   chapList.forEach((chap) => {
     const range = { trigger: chap, start: "top bottom", end: "bottom top", scrub: true };
-    gsap.fromTo($(".chap__word span", chap), { xPercent: 18 }, { xPercent: -42, ease: "none", scrollTrigger: range });
+    if (!touch) gsap.fromTo($(".chap__word span", chap), { xPercent: 18 }, { xPercent: -42, ease: "none", scrollTrigger: range });
     const a = $(".chap__pack--a", chap);
     const b2 = $(".chap__pack--b", chap);
-    if (a) gsap.fromTo(a, { yPercent: 24, rotate: -20 }, { yPercent: -10, rotate: -6, ease: "none", scrollTrigger: range });
-    if (b2) gsap.fromTo(b2, { yPercent: 40, rotate: 24 }, { yPercent: -4, rotate: 10, ease: "none", scrollTrigger: range });
+    if (a) gsap.fromTo(a, { yPercent: 24, rotate: -20 }, { yPercent: -10, rotate: -6, ease: touch ? "power3.out" : "none", duration: 1.2, scrollTrigger: scrub(range) });
+    if (b2) gsap.fromTo(b2, { yPercent: 40, rotate: 24 }, { yPercent: -4, rotate: 10, ease: touch ? "power3.out" : "none", duration: 1.3, scrollTrigger: scrub(range) });
     $$(".chap__mini", chap).forEach((m, k) =>
-      gsap.fromTo(m, { yPercent: 100, rotate: 0, opacity: 0 }, { yPercent: -10 - (k % 3) * 20, rotate: (k - 2.5) * 10, opacity: 1, ease: "back.out(1.4)", scrollTrigger: { trigger: chap, start: "top 75%", end: "top 15%", scrub: 0.6 } })
+      gsap.fromTo(m, { yPercent: 100, rotate: 0, opacity: 0 }, { yPercent: -10 - (k % 3) * 20, rotate: (k - 2.5) * 10, opacity: 1, ease: "back.out(1.4)", duration: 1, stagger: 0.05, scrollTrigger: scrub({ trigger: chap, start: "top 75%", end: "top 15%", scrub: 0.6 }) })
     );
     gsap.from($$(".chap__info > *", chap), { y: 40, opacity: 0, duration: 1, ease: "power3.out", stagger: 0.07, scrollTrigger: { trigger: chap, start: "top 55%", once: true } });
     ST.create({ trigger: chap, start: "top 55%", once: true, onEnter: () => chap.classList.add("is-hot") });
@@ -1038,11 +993,11 @@ function initMotion() {
 
   // Ed: the story lights up word by word as you read; the facts label prints row by row.
   const words = $$(".ed__text .word");
-  if (words.length)
+  if (words.length && !touch)
     gsap.fromTo(words, { opacity: 0.16 }, { opacity: 1, ease: "none", stagger: 0.1, scrollTrigger: { trigger: ".ed__text", start: "top 80%", end: "bottom 45%", scrub: 0.4 } });
   gsap.from(".facts", { y: 60, rotate: 3, opacity: 0, duration: 1.1, ease: "power3.out", scrollTrigger: { trigger: ".facts", start: "top 85%", once: true } });
   gsap.from(".facts__row", { opacity: 0, x: -16, duration: 0.5, ease: "power2.out", stagger: 0.08, delay: 0.35, scrollTrigger: { trigger: ".facts", start: "top 85%", once: true } });
-  gsap.fromTo("[data-ed-skull]", { rotate: -10, yPercent: 20, opacity: 0 }, { rotate: 0, yPercent: 0, opacity: 1, ease: "none", scrollTrigger: { trigger: ".ed", start: "top 80%", end: "top 20%", scrub: true } });
+  gsap.fromTo("[data-ed-skull]", { rotate: -10, yPercent: 20, opacity: 0 }, { rotate: 0, yPercent: 0, opacity: 1, ease: touch ? "power3.out" : "none", duration: 1.1, scrollTrigger: scrub({ trigger: ".ed", start: "top 80%", end: "top 20%", scrub: true }) });
 
   // Blocks rise in.
   ST.batch($$("main [data-in], .foot [data-in]").filter((el) => !el.closest(".hero")), {
@@ -1052,8 +1007,8 @@ function initMotion() {
   });
 
   // Footer mark grows from below.
-  gsap.fromTo(".foot__word", { yPercent: 40, scale: 0.92 }, { yPercent: 0, scale: 1, ease: "none", scrollTrigger: { trigger: ".foot", start: "top bottom", end: "bottom bottom", scrub: true } });
-  gsap.fromTo(".foot__skull", { yPercent: 60, rotate: -8, opacity: 0 }, { yPercent: 0, rotate: 0, opacity: 1, ease: "none", scrollTrigger: { trigger: ".foot", start: "top bottom", end: "bottom bottom", scrub: true } });
+  gsap.fromTo(".foot__word", { yPercent: 40, scale: 0.92 }, { yPercent: 0, scale: 1, ease: touch ? "power3.out" : "none", duration: 1.2, scrollTrigger: scrub({ trigger: ".foot__mark", start: "top bottom", end: "bottom bottom", scrub: true }) });
+  gsap.fromTo(".foot__skull", { yPercent: 60, rotate: -8, opacity: 0 }, { yPercent: 0, rotate: 0, opacity: 1, ease: touch ? "power3.out" : "none", duration: 1.2, scrollTrigger: scrub({ trigger: ".foot__mark", start: "top bottom", end: "bottom bottom", scrub: true }) });
 
   window.addEventListener("load", () => ST.refresh());
   document.fonts?.ready.then(() => ST.refresh());
