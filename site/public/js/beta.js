@@ -764,8 +764,6 @@ let chapList = [];
 // ======================================================================
 const texts3d = { ingredients: B.ingredients_title, list: (B._ingredients || []).join(", "), soy: B.contains_soy, store: B.store, made: B.made };
 const stripes = cfg.flavours.map((f) => f.band);
-const heroProducts = [...groups.map((g) => g.items[0]), ...groups.map((g) => g.items[1]).filter(Boolean)];
-let heroViewer = null;
 let inspectViewer = null;
 let inspectProduct = groups[0]?.items[0] || products[0];
 const inspectProductsEl = $("[data-inspect-products]");
@@ -795,21 +793,15 @@ const threeReady = import("./beta3d.js")
   .then(async (mod) => {
     const logo = await mod.loadAssets(`${B._brand}/logo.png`);
     // Developer hook: /en/betatest?render-packs renders the packshots for public/img/packs.
+    if (location.search.includes("render-box")) {
+      window.__box = mod.renderBoxParts(box, { logo, stripes });
+      return;
+    }
     if (location.search.includes("render-packs")) {
       window.__packs = mod.renderShots(products, { meats: cfg.meats, logo, texts: texts3d, stripes });
       return;
     }
     const opts = { meats: cfg.meats, logo, texts: texts3d, stripes, reduce };
-    heroViewer = mod.createViewer($("[data-hero-canvas]"), { ...opts, mode: "hero", fill: 0.74, idle: !touch, maxDpr: touch ? 1.5 : 2 });
-    if (heroViewer) {
-      heroViewer.setProduct(heroProducts[0], { animate: false });
-      root.classList.add("has-3d");
-      let h = 0;
-      $("[data-hero-canvas]").addEventListener("click", () => {
-        h = (h + 1) % heroProducts.length;
-        heroViewer.setProduct(heroProducts[h]);
-      });
-    }
     inspectViewer = mod.createViewer($("[data-inspect-canvas]"), { ...opts, mode: "inspect", fill: 0.7, maxDpr: touch ? 1.5 : 2 });
     if (inspectViewer) {
       inspectViewer.setProduct(inspectProduct, { animate: false });
@@ -818,11 +810,6 @@ const threeReady = import("./beta3d.js")
   })
   .catch(() => {});
 threeReady.then(() => {
-  if (!heroViewer) {
-    const img = $("[data-hero-fallback]");
-    img.src = packSrc(heroProducts[0]);
-    img.hidden = false;
-  }
   if (!inspectViewer) {
     const img = $("[data-inspect-fallback]");
     img.src = packSrc(inspectProduct);
@@ -1033,8 +1020,126 @@ function intro() {
   setTimeout(() => kick(40), 1500);
 }
 
+// ======================================================================
+// The taster box in the hero: bursts open on hover (on phones, once it is on
+// screen), and a click puts it in the cart and goes to the order section.
+// ======================================================================
+const tboxEl = $("[data-tbox]");
+let tboxTl = null;
+function initTasterBox() {
+  if (!tboxEl || !box) return;
+  const gsap = window.gsap;
+  const packsEl = $("[data-tbox-packs]", tboxEl);
+  const six = cfg.flavours.slice(0, 6);
+  packsEl.innerHTML = six.map((f, i) => `<span class="tbox__p" style="--i:${i}">${packImg(f, "", true)}</span>`).join("");
+  const hint = $("[data-tbox-hint]", tboxEl);
+  if (!finePointer) hint.textContent = hint.dataset.touch;
+  if (!gsap || reduce) {
+    tboxEl.classList.add("is-open", "is-static");
+    return;
+  }
+  const packs = $$(".tbox__p", tboxEl);
+  const sparks = $$(".tbox__sparks i", tboxEl);
+  // Where each pack lands, as a share of the box's width: a fan over the box,
+  // the middle ones highest.
+  const angles = [160, 130, 104, 76, 50, 20];
+  const land = packs.map((_, i) => {
+    const a = (angles[i] * Math.PI) / 180;
+    const r = i === 2 || i === 3 ? 1.1 : 1;
+    return { x: Math.cos(a) * 0.36 * r, y: -Math.sin(a) * 0.27 * r - 0.06, rot: (90 - angles[i]) * 0.45 };
+  });
+  const W = () => tboxEl.offsetWidth;
+  gsap.set(packs, { xPercent: -50, yPercent: -10, scale: 0.5, opacity: 0 });
+  tboxTl = gsap
+    .timeline({ paused: true })
+    // the box gives a kick
+    .to(".tbox__base", { scale: 1.035, yPercent: 1.5, duration: 0.12, ease: "power2.out" }, 0)
+    .to(".tbox__base", { scale: 1, yPercent: 0, duration: 0.55, ease: "elastic.out(1, 0.45)" }, 0.12)
+    // the lid flies off
+    .to(".tbox__lid", { yPercent: -24, xPercent: -8, rotate: -15, duration: 0.55, ease: "back.out(1.8)" }, 0.02)
+    .to(".tbox__glow", { opacity: 1, scale: 1.15, duration: 0.5, ease: "power2.out" }, 0)
+    // sparks fly out and fade
+    .fromTo(
+      sparks,
+      { x: 0, y: 0, opacity: 1, scale: 1 },
+      {
+        immediateRender: false,
+        x: (i) => Math.cos((i / sparks.length) * Math.PI * 1.2 + Math.PI * 0.9) * W() * (0.32 + (i % 4) * 0.07),
+        y: (i) => Math.sin((i / sparks.length) * Math.PI * 1.2 + Math.PI * 0.9) * W() * (0.26 + (i % 3) * 0.06),
+        opacity: 0,
+        scale: 0.3,
+        duration: 0.7,
+        ease: "power3.out",
+        stagger: 0.008,
+      },
+      0.06
+    )
+    // the packs burst out: up out of the box, then in front of it
+    .to(packs, { opacity: 1, duration: 0.1, stagger: { each: 0.03, from: "center" } }, 0.08)
+    .to(
+      packs,
+      {
+        x: (i) => land[i].x * W(),
+        y: (i) => land[i].y * W(),
+        rotate: (i) => land[i].rot,
+        scale: 1,
+        duration: 0.75,
+        ease: "expo.out",
+        stagger: { each: 0.03, from: "center" },
+      },
+      0.08
+    )
+    .set(packsEl, { zIndex: 4 }, 0.24);
+  const open = () => {
+    tboxTl.timeScale(1).play();
+    tboxEl.classList.add("is-open");
+  };
+  const close = () => {
+    tboxTl.timeScale(1.7).reverse();
+    tboxEl.classList.remove("is-open");
+  };
+  if (finePointer) {
+    tboxEl.addEventListener("pointerenter", open);
+    tboxEl.addEventListener("pointerleave", close);
+    tboxEl.addEventListener("focus", open);
+    tboxEl.addEventListener("blur", close);
+  } else {
+    // Phones: it bursts open by itself once it is on screen after the intro.
+    new IntersectionObserver(
+      ([e], io) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        setTimeout(open, 1300);
+      },
+      { threshold: 0.5 }
+    ).observe(tboxEl);
+  }
+}
+if (tboxEl && box)
+  tboxEl.addEventListener("click", () => {
+    if (tboxTl && tboxTl.progress() < 0.6) {
+      tboxTl.timeScale(1.4).play();
+      tboxEl.classList.add("is-open");
+    }
+    setQty(box.id, qty(box.id) + 1);
+    fly($(".tbox__base", tboxEl), box);
+    toast(b("hero_box_added", { name: box.name }));
+    // Go to the order section and point at the taster box there.
+    setTimeout(() => {
+      const target = $("#shop");
+      if (lenis) lenis.scrollTo(target, { offset: -70, duration: 1.5, easing: (x) => 1 - Math.pow(1 - x, 4) });
+      else target.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+      const card = $('[data-card="box"]', lineupEl);
+      if (card) {
+        card.classList.add("is-flash");
+        setTimeout(() => card.classList.remove("is-flash"), 2800);
+      }
+    }, reduce ? 0 : 650);
+  });
+
 const start = () => {
   initMotion();
+  initTasterBox();
   runLoader().then(intro);
 };
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

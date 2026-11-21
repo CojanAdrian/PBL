@@ -495,3 +495,63 @@ export function renderShots(list, { meats = [], logo = null, texts, stripes = []
   renderer.dispose();
   return out;
 }
+
+// ---------- The taster box, open, in two layers ----------
+// Renders the box without its lid ("base", open at the top so you can see in)
+// and the lid on its own, from the same camera, so the two images line up and
+// the page can lift the lid off. Also returns where the opening is (0..1).
+export function renderBoxParts(box, { logo = null, stripes = [], size = 1200 } = {}) {
+  const canvas = makeCanvas(size, size);
+  const { renderer, scene, camera } = setup(canvas);
+  renderer.setPixelRatio(1);
+  renderer.setSize(size, size, false);
+  camera.aspect = 1;
+  camera.position.set(0, 3.4, 12.5);
+  camera.lookAt(0, 0.15, 0);
+  camera.updateProjectionMatrix();
+  const tex = (cnv) => {
+    const t = new THREE.CanvasTexture(cnv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+  };
+  const mat = (opts) => new THREE.MeshPhysicalMaterial({ roughness: 0.66, metalness: 0.06, clearcoat: 0.15, clearcoatRoughness: 0.6, envMapIntensity: 0.26, ...opts });
+  const face = mat({ map: tex(paintBox(box, stripes, logo)) });
+  const side = mat({ color: "#1d1917" });
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  const group = new THREE.Group();
+  group.rotation.y = -0.34;
+  scene.add(group);
+  // Outer walls (no top) + dark inside walls.
+  const W = 2.4;
+  const H = 2.4;
+  const D = 1.1;
+  const outer = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), [side, side, hidden, side, face, face]);
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(W - 0.06, H - 0.04, D - 0.06), [mat({ color: "#0c0908", side: THREE.BackSide }), mat({ color: "#0c0908", side: THREE.BackSide }), hidden, mat({ color: "#120d0b", side: THREE.BackSide }), mat({ color: "#0c0908", side: THREE.BackSide }), mat({ color: "#0c0908", side: THREE.BackSide })]);
+  inner.position.y = 0.02;
+  group.add(outer, inner);
+  // The lid: a shallow cap with a thin ember line round its edge.
+  const lid = new THREE.Group();
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(W + 0.08, 0.2, D + 0.08), [side, side, mat({ color: "#231c19" }), side, side, side]);
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(W + 0.1, 0.035, D + 0.1), mat({ color: "#e97f0e", roughness: 0.5 }));
+  edge.position.y = -0.07;
+  lid.add(cap, edge);
+  lid.position.y = H / 2 + 0.09;
+  group.add(lid);
+
+  const shot = () => {
+    renderer.clear();
+    renderer.render(scene, camera);
+    return canvas.toDataURL("image/png");
+  };
+  lid.visible = false;
+  const base = shot();
+  lid.visible = true;
+  outer.visible = inner.visible = false;
+  const lidShot = shot();
+  // Where the middle of the opening lands in the image.
+  group.updateMatrixWorld(true);
+  const p = new THREE.Vector3(0, H / 2, 0).applyMatrix4(group.matrixWorld).project(camera);
+  renderer.dispose();
+  return { base, lid: lidShot, mouth: { x: (p.x + 1) / 2, y: (1 - p.y) / 2 } };
+}

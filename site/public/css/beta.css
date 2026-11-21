@@ -2608,3 +2608,196 @@ html:lang(ro) .display {
 .is-touch .card__img {
   filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.45));
 }
+
+/* ---------- The taster box in the hero ----------
+   Two images rendered from the same camera (box without lid, lid alone) so the
+   lid can fly off; the six packs start inside the box and burst out. */
+.hero__stage {
+  display: grid;
+  place-items: center;
+}
+.tbox {
+  position: relative;
+  width: min(100%, 76svh, 720px);
+  aspect-ratio: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tbox:focus-visible {
+  outline-offset: -10%;
+}
+.tbox__base,
+.tbox__lid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.5));
+}
+.tbox__base {
+  z-index: 2;
+  transform-origin: 50% 85%;
+}
+.tbox__lid {
+  z-index: 3;
+  transform-origin: 30% 10%;
+}
+.tbox__glow {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 8%;
+  bottom: 20%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 150, 40, 0.6), rgba(233, 127, 14, 0.15) 60%, transparent);
+  opacity: 0.35;
+  pointer-events: none;
+}
+/* The opening of the box is at 50% across, 29.3% down the image. */
+.tbox__packs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 29.3%;
+  z-index: 1;
+  height: 0;
+  pointer-events: none;
+}
+.tbox__p {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 17%;
+  will-change: transform;
+}
+.tbox__p img,
+.tbox__p .pack-svg {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.5));
+}
+.tbox.is-open .tbox__p img {
+  animation: tbox-bob 2.6s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -0.45s);
+}
+@keyframes tbox-bob {
+  to {
+    transform: translateY(-7%) rotate(2.5deg);
+  }
+}
+.tbox.is-static .tbox__packs,
+.tbox.is-static .tbox__sparks {
+  display: none;
+}
+.tbox__sparks {
+  position: absolute;
+  left: 50%;
+  top: 29.3%;
+  z-index: 4;
+  pointer-events: none;
+}
+.tbox__sparks i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: #ffc46b;
+  box-shadow: 0 0 10px 2px rgba(255, 140, 30, 0.8);
+  opacity: 0;
+}
+.tbox__sparks i:nth-child(3n) {
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+}
+/* The message: a stamp across the bottom of the box. */
+.tbox__badge {
+  position: absolute;
+  left: 50%;
+  top: 77%;
+  z-index: 5;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 22px 11px;
+  background: var(--ember);
+  color: #140a03;
+  clip-path: var(--chamfer);
+  transform: translateX(-50%) rotate(-3deg);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  transition: transform 0.4s var(--ease), background-color 0.3s;
+  pointer-events: none;
+}
+.tbox__badge b {
+  font-family: var(--label);
+  font-weight: 700;
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.tbox__badge small {
+  font-family: var(--label);
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.tbox:hover .tbox__badge,
+.tbox.is-open .tbox__badge {
+  background: var(--bone);
+  transform: translateX(-50%) rotate(-3deg) scale(1.06);
+}
+/* A slow ring around the badge so it reads as something to press. */
+.tbox__badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  outline: 2px solid var(--ember);
+  animation: tbox-ring 2.2s var(--ease) infinite;
+}
+@keyframes tbox-ring {
+  0% {
+    outline-offset: 0;
+    opacity: 1;
+  }
+  100% {
+    outline-offset: 14px;
+    opacity: 0;
+  }
+}
+.tbox__hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 92%;
+  z-index: 5;
+  font-family: var(--label);
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(246, 230, 204, 0.6);
+  pointer-events: none;
+}
+@media (max-width: 899px) {
+  .hero__stage {
+    height: auto;
+  }
+  .tbox {
+    width: min(100%, 52svh);
+  }
+}
+/* The taster card in the order section lights up after a click on the box. */
+.card.is-flash {
+  animation: card-flash 0.9s var(--ease) 3;
+}
+@keyframes card-flash {
+  50% {
+    box-shadow: inset 0 0 0 3px var(--ember), 0 0 60px rgba(233, 127, 14, 0.45);
+    transform: translateY(-8px);
+  }
+}

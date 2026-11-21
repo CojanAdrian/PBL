@@ -38,6 +38,12 @@ class BetaTexts
         'hero_kicker' => ['en' => 'Beef & chicken jerky', 'ro' => 'Jerky de vită și de pui', 'ru' => 'Джерки из говядины и курицы'],
         'hero_line' => ['en' => 'Made by hand, after dark, in one kitchen in Moldova.', 'ro' => 'Făcut manual, noaptea târziu, într-o singură bucătărie din Moldova.', 'ru' => 'Сделано вручную, поздно ночью, на одной кухне в Молдове.'],
         'hero_cta' => ['en' => 'Click to order', 'ro' => 'Comandă acum', 'ru' => 'Заказать'],
+        'hero_box_badge' => ['en' => 'Order the taster box', 'ro' => 'Comandă cutia de degustare', 'ru' => 'Закажи дегустационный набор'],
+        'hero_box_sub' => ['en' => 'All 6 flavours · {price}', 'ro' => 'Toate cele 6 arome · {price}', 'ru' => 'Все 6 вкусов · {price}'],
+        'hero_box_hint' => ['en' => 'Hover to open · Click to order', 'ro' => 'Treci cu mouse-ul ca s-o deschizi · Click ca s-o comanzi', 'ru' => 'Наведите, чтобы открыть · Нажмите, чтобы заказать'],
+        'hero_box_hint_touch' => ['en' => 'Tap to add it to your cart', 'ro' => 'Atinge ca s-o adaugi în coș', 'ru' => 'Нажмите, чтобы добавить в корзину'],
+        'hero_box_aria' => ['en' => 'Add the taster box to your cart and go to the order section', 'ro' => 'Adaugă cutia de degustare în coș și mergi la comandă', 'ru' => 'Добавить дегустационный набор в корзину и перейти к заказу'],
+        'hero_box_added' => ['en' => '{name} is in your cart.', 'ro' => '{name} e în coș.', 'ru' => '{name} в корзине.'],
         'hero_note' => ['en' => 'From {price} · Pay at the door', 'ro' => 'De la {price} · Plătești la ușă', 'ru' => 'От {price} · Оплата при получении'],
 
         // ---- Tapes ----

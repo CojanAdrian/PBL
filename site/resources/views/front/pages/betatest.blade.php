@@ -31,6 +31,7 @@
     // A button whose label rolls up on hover (the copy below is for sighted users only).
     $roll = fn ($text) => '<span class="roll" data-text="'.e($text).'"><span>'.e($text).'</span></span>';
     $currentLang = $langs->firstWhere('code', $locale);
+    $tasterBox = $menu['boxes'][0] ?? null;
 @endphp
 <!doctype html>
 <html lang="{{ $locale }}" class="no-js">
@@ -160,9 +161,22 @@
             <p class="hero__note">{{ str_replace('{price}', $price($cheapest), $b['hero_note']) }}</p>
           </div>
         </div>
+        {{-- The taster box: hover (or tap) and it bursts open; click puts it in the cart. --}}
         <div class="hero__stage">
-          <canvas class="hero__pack" data-hero-canvas aria-hidden="true"></canvas>
-          <img class="hero__fallback" data-hero-fallback alt="" hidden>
+          @if ($tasterBox)
+            <button class="tbox" type="button" data-tbox aria-label="{{ $b['hero_box_aria'] }}">
+              <span class="tbox__glow" aria-hidden="true"></span>
+              <span class="tbox__sparks" aria-hidden="true">@for ($s = 0; $s < 14; $s++)<i></i>@endfor</span>
+              <span class="tbox__packs" aria-hidden="true" data-tbox-packs></span>
+              <img class="tbox__base" src="{{ asset('img/packs/box-base.webp') }}" width="1200" height="1200" alt="" fetchpriority="high">
+              <img class="tbox__lid" src="{{ asset('img/packs/box-lid.webp') }}" width="1200" height="1200" alt="">
+              <span class="tbox__badge">
+                <b>{{ $b['hero_box_badge'] }}</b>
+                <small>{{ str_replace('{price}', $price($tasterBox['price']), $b['hero_box_sub']) }}</small>
+              </span>
+              <span class="tbox__hint" data-tbox-hint data-touch="{{ $b['hero_box_hint_touch'] }}">{{ $b['hero_box_hint'] }}</span>
+            </button>
+          @endif
         </div>
       </div>
     </section>
