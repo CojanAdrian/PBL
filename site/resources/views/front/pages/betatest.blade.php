@@ -2,9 +2,10 @@
     The redesigned Big Ed's page, tested at /{locale}/betatest before it replaces
     home.blade.php. Same products, prices and order endpoint as the main page;
     texts in App\Shop\BetaTexts (order-form errors still come from Text blocks).
-    The flavour cards, the taster box and the order receipt are drawn by
-    public/js/beta.js from the menu data at the bottom of this page.
-    Photos: public/img/beta (sources in CREDITS.txt there).
+
+    One WebGL canvas (public/js/beta3d.js) sits behind the page. The pack flies to
+    whichever [data-anchor] box is on screen: the hero, the intro, the flavours.
+    Everything else (flavour list, order panel) is drawn by public/js/beta.js.
 --}}
 @php
     $cms = app(\App\Support\Cms\Cms::class);
@@ -18,14 +19,11 @@
         'instagram' => ltrim($cms->plain('footer_instagram'), '@'),
         'telegram' => ltrim($cms->plain('footer_telegram'), '@'),
     ])->filter();
-    $flavourNames = collect($menu['flavours'])->pluck('name')->unique()->values();
     $cheapest = collect($menu['flavours'])->min('price');
     $packGrams = collect($menu['flavours'])->pluck('grams')->unique()->count() === 1 ? $menu['flavours'][0]['grams'] : 100;
     $price = fn ($n) => number_format($n, 0, '.', ' ').' '.$menu['currency'];
-    $img = fn ($name) => asset("img/beta/{$name}.webp");
     $v = fn ($file) => asset($file).'?v='.filemtime(public_path($file));
-    $roll = fn ($text) => '<span class="roll"><span class="roll__in" data-t="'.e($text).'">'.e($text).'</span></span>';
-    $pills = ['texas', 'garlic', 'honey', 'dry'];
+    $hint = '<span class="hint" aria-hidden="true"><i></i>'.e($b['hint_drag']).' · '.e($b['hint_tap']).'</span>';
 @endphp
 <!doctype html>
 <html lang="{{ $locale }}" class="no-js">
@@ -36,19 +34,20 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{{ $b['title'] }}</title>
   <meta name="description" content="{{ $b['description'] }}">
-  <meta name="theme-color" content="#110e0c">
+  <meta name="theme-color" content="#0e0b09">
   <link rel="icon" type="image/png" href="{{ $cms->imageUrl('favicon', 'img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
   <link rel="preload" href="{{ asset('fonts/anton-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ asset('fonts/manrope-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="{{ $img('hero') }}" as="image">
+  <link rel="modulepreload" href="{{ asset('vendor/three/three.module.min.js') }}">
   <link rel="stylesheet" href="{{ $v('css/beta.css') }}">
   <script>document.documentElement.className = 'js';</script>
+  <script type="importmap">{"imports": {"three": "{{ asset('vendor/three/three.module.min.js') }}"}}</script>
 </head>
 <body>
   <a class="skip" href="#main">{{ $cms->plain('skip_link', 'Skip to content') }}</a>
 
-  {{-- Gradients used by the pack drawings (pouch.js adds one per meat). --}}
+  {{-- Gradients used by the 2D pack drawings in the order panel (pouch.js adds one per meat). --}}
   <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="pouchBody" x1="0" y1="0" x2="0" y2="1">
@@ -63,168 +62,125 @@
     </defs>
   </svg>
 
-  <div class="page">
-    <p class="betabar">{{ $b['beta_bar'] }} <a href="{{ route('front.index', ['locale' => $locale]) }}">{{ $b['beta_back'] }}</a></p>
+  <div class="glow" aria-hidden="true"></div>
+  <canvas class="stage3d" data-stage aria-hidden="true"></canvas>
 
-    <header class="nav" data-nav>
-      <div class="nav__in">
-        <a class="nav__brand" href="#top" aria-label="Big Ed's Jerky">
-          <img src="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" width="44" height="44" alt="">
-          <span>Big Ed's</span>
-        </a>
-        <nav class="nav__links" aria-label="Main">
-          <a href="#menu">{!! $roll($b['nav_menu']) !!}</a>
-          <a href="#how">{!! $roll($b['nav_how']) !!}</a>
-          <a href="#story">{!! $roll($b['nav_story']) !!}</a>
-          <a href="#faq">{!! $roll($b['nav_faq']) !!}</a>
+  <p class="betabar">{{ $b['beta_bar'] }} <a href="{{ route('front.index', ['locale' => $locale]) }}">{{ $b['beta_back'] }}</a></p>
+
+  <header class="nav" data-nav>
+    <div class="nav__in">
+      <a class="nav__brand" href="#top" aria-label="Big Ed's Jerky">
+        <img src="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" width="40" height="40" alt="">
+        <span>Big Ed's</span>
+      </a>
+      <nav class="nav__links" aria-label="Main">
+        <a href="#flavours">{{ $b['nav_flavours'] }}</a>
+        <a href="#how">{{ $b['nav_how'] }}</a>
+        <a href="#faq">{{ $b['nav_faq'] }}</a>
+      </nav>
+      @if ($langs->count() > 1)
+        <nav class="nav__langs" aria-label="{{ $cms->plain('nav_languages', 'Language') }}">
+          @foreach ($langs as $lang)
+            <a href="{{ route('front.beta', ['locale' => $lang->code]) }}" hreflang="{{ $lang->code }}" lang="{{ $lang->code }}" title="{{ $lang->name }}" @if ($lang->code === $locale) aria-current="true" @endif>{{ strtoupper($lang->code) }}</a>
+          @endforeach
         </nav>
-        @if ($langs->count() > 1)
-          <nav class="nav__langs" aria-label="{{ $cms->plain('nav_languages', 'Language') }}">
-            @foreach ($langs as $lang)
-              <a href="{{ route('front.beta', ['locale' => $lang->code]) }}" hreflang="{{ $lang->code }}" lang="{{ $lang->code }}" title="{{ $lang->name }}" @if ($lang->code === $locale) aria-current="true" @endif>{{ strtoupper($lang->code) }}</a>
-            @endforeach
-          </nav>
-        @endif
-        <button class="nav__order" type="button" data-open-order>
-          <span>{{ $b['nav_order'] }}</span><span class="count" data-count hidden>0</span>
-        </button>
-      </div>
-    </header>
+      @endif
+      <button class="nav__order" type="button" data-open-order>
+        <span>{{ $b['nav_order'] }}</span><span class="count" data-count>0</span>
+      </button>
+    </div>
+  </header>
 
-    <main id="main">
-      {{-- HERO: the two lines part and the photo window opens to full screen as you scroll. --}}
-      <section class="hero" id="top" data-hero aria-labelledby="hero-title">
-        <div class="hero__stage">
-          <p class="hero__kicker" data-in>{{ $b['hero_kicker'] }}</p>
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <p class="kicker" data-in>{{ $b['hero_kicker'] }}</p>
           <h1 class="hero__title" id="hero-title">
-            <span class="hero__t hero__t--1" data-split>{{ $b['hero_title_1'] }}</span>
-            <span class="hero__t hero__t--2" data-split>{{ $b['hero_title_2'] }}</span>
+            <span class="hl" data-split>{{ $b['hero_title_1'] }}</span>
+            <span class="hl hl--accent" data-split>{{ $b['hero_title_2'] }}</span>
           </h1>
-          <figure class="hero__window" data-window>
-            <img src="{{ $img('hero') }}" srcset="{{ $img('hero-sm') }} 720w, {{ $img('hero') }} 1600w" sizes="(min-width: 900px) 100vw, 92vw" width="1600" height="2133" alt="{{ $b['hero_photo_alt'] }}" fetchpriority="high">
-            <figcaption class="hero__after" data-after>{{ $b['hero_after'] }}</figcaption>
-          </figure>
-          <div class="hero__bottom" data-in>
-            <p class="hero__lead">{{ $b['hero_lead'] }}</p>
-            <div class="hero__act">
-              <a class="btn btn--fire btn--lg" href="#menu"><span>{{ $b['hero_cta'] }}</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
-              <p class="hero__price"><strong>{{ str_replace('{price}', $price($cheapest), $b['hero_from']) }}</strong><span>{{ $b['hero_pay'] }}</span></p>
-            </div>
+          <p class="hero__lead" data-in>{{ $b['hero_lead'] }}</p>
+          <div class="hero__act" data-in>
+            <a class="btn btn--fire" href="#flavours"><span>{{ $b['hero_cta'] }}</span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
+            <p class="hero__price"><strong>{{ str_replace('{price}', $price($cheapest), $b['hero_from']) }}</strong><span>{{ $b['hero_pay'] }}</span></p>
           </div>
-          <p class="hero__scroll" aria-hidden="true"><span></span>{{ $b['hero_scroll'] }}</p>
         </div>
-      </section>
-
-      {{-- Flavour names with little photos between them. --}}
-      <div class="band" aria-hidden="true">
-        <div class="band__track" data-band>
-          @for ($r = 0; $r < 2; $r++)
-            <div class="band__group">
-              @foreach ($flavourNames as $i => $name)
-                <span class="band__word">{{ $name }}</span>
-                <span class="band__pill"><img src="{{ $img($pills[$i % count($pills)].'-sm') }}" alt="" loading="lazy" width="120" height="80"></span>
-              @endforeach
-            </div>
-          @endfor
+        <div class="anchor hero__anchor" data-anchor data-fill="1" data-drag>
+          <div class="fallback" data-fallback></div>
+          {!! $hint !!}
         </div>
       </div>
+    </section>
 
-      {{-- For first-timers: what jerky is and how you eat it. --}}
-      <section class="new" id="new" aria-labelledby="new-title">
-        <div class="wrap new__grid">
-          <h2 id="new-title" data-line>{{ $b['new_title'] }}</h2>
-          <ol class="new__list">
+    <section class="intro" id="new" aria-labelledby="new-title">
+      <div class="wrap intro__grid">
+        <div class="anchor intro__anchor" data-anchor data-fill=".8" data-desktop-only></div>
+        <div class="intro__copy">
+          <p class="kicker" data-in>{{ $b['new_kicker'] }}</p>
+          <h2 id="new-title" data-words>{{ $b['new_title'] }}</h2>
+          <ul class="points">
             @foreach ([1, 2, 3] as $i)
-              <li data-rise>
-                <span class="new__n" aria-hidden="true">0{{ $i }}</span>
+              <li data-in>
                 <h3>{{ $b["new_{$i}_t"] }}</h3>
                 <p>{{ $b["new_{$i}_d"] }}</p>
               </li>
             @endforeach
-          </ol>
+          </ul>
         </div>
-      </section>
+      </div>
+    </section>
 
-      {{-- MENU: one card per flavour; the cards stack as you scroll. --}}
-      <section class="menu" id="menu" aria-labelledby="menu-title">
-        <header class="wrap menu__head">
-          <h2 id="menu-title"><span data-line>{{ $b['menu_title'] }}</span> <em data-line>{{ $b['menu_title_em'] }}</em></h2>
-          <p data-rise>{{ str_replace('{g}', $packGrams, $b['menu_lead']) }}</p>
-        </header>
-        <div class="wrap stack" data-cards></div>
-        <noscript><p class="wrap noscript">{{ $b['menu_noscript'] }}</p></noscript>
-      </section>
-
-      <section class="taster" id="taster" data-taster aria-labelledby="taster-title"></section>
-
-      <section class="how" id="how" aria-labelledby="how-title">
-        <div class="wrap">
-          <h2 id="how-title"><span data-line>{{ $b['how_title'] }}</span> <em data-line>{{ $b['how_title_em'] }}</em></h2>
-          <ol class="how__list">
-            @foreach ([1, 2, 3] as $i)
-              <li data-rise>
-                <span class="how__n" aria-hidden="true">{{ $i }}</span>
-                <div>
-                  <h3>{{ $b["how_{$i}_t"] }}</h3>
-                  <p>{{ $b["how_{$i}_d"] }}</p>
-                </div>
-              </li>
-            @endforeach
-          </ol>
-          <a class="btn btn--ink btn--lg" href="#menu" data-rise><span>{{ $b['how_cta'] }}</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        </div>
-      </section>
-
-      {{-- ED'S KITCHEN: a sideways strip on large screens, a swipeable row on phones. --}}
-      <section class="story" id="story" aria-labelledby="story-title" data-story>
-        <div class="story__pin">
-          <div class="story__track" data-track>
-            <div class="panel panel--intro">
-              <p class="kicker">{{ $b['story_kicker'] }}</p>
-              <h2 id="story-title">{{ $b['story_title'] }} <em>{{ $b['story_title_em'] }}</em></h2>
-              <p class="panel__big">{{ $b['story_1'] }}</p>
-              <p class="panel__small">{{ $b['story_2'] }}</p>
-            </div>
-            @foreach ([1 => 'slice', 2 => 'marinate', 3 => 'dry'] as $i => $photo)
-              <figure class="panel panel--step">
-                <div class="panel__photo"><img src="{{ $img($photo) }}" srcset="{{ $img($photo.'-sm') }} 720w, {{ $img($photo) }} 1600w" sizes="(min-width: 900px) 34vw, 80vw" width="1600" height="2400" alt="" loading="lazy" data-parallax></div>
-                <figcaption><span class="panel__n">0{{ $i }}</span><strong>{{ $b["step_{$i}_t"] }}</strong>{{ $b["step_{$i}_d"] }}</figcaption>
-              </figure>
-            @endforeach
-            <figure class="panel panel--step panel--packs">
-              <div class="panel__photo panel__photo--packs" data-packs></div>
-              <figcaption><span class="panel__n">04</span><strong>{{ $b['step_4_t'] }}</strong>{{ $b['step_4_d'] }}</figcaption>
-            </figure>
-            <aside class="panel panel--label" aria-labelledby="ing-title">
-              <div class="label">
-                <p class="label__brand">Big Ed's Jerky</p>
-                <h3 id="ing-title">{{ $b['ingredients_title'] }}</h3>
-                <p class="label__list">{{ $ingredients->implode(', ') }}.</p>
-                <p class="label__warn">{{ $b['contains_soy'] }}</p>
-                <p class="label__small">{{ $b['store'] }}</p>
-                <svg class="label__bars" viewBox="0 0 120 30" aria-hidden="true" data-barcode="BIGEDS"></svg>
-              </div>
-            </aside>
+    {{-- THE FLAVOURS: pinned on large screens; scrolling (or clicking) changes flavour and the pack explodes. --}}
+    <section class="lab" id="flavours" data-lab aria-labelledby="lab-title">
+      <div class="lab__stage">
+        <div class="lab__copy">
+          <div class="lab__head">
+            <p class="kicker" id="lab-title">{{ $b['lab_kicker'] }}</p>
+            <p class="lab__lead">{{ str_replace('{g}', $packGrams, $b['lab_lead']) }}</p>
           </div>
+          <div class="lab__list" role="tablist" aria-labelledby="lab-title" data-list></div>
+          <div class="lab__details" role="tabpanel" data-details aria-live="polite"></div>
+          <noscript><p>{{ $b['lab_noscript'] }}</p></noscript>
         </div>
-      </section>
-
-      <section class="faq" id="faq" aria-labelledby="faq-title">
-        <div class="wrap faq__grid">
-          <h2 id="faq-title" data-line>{{ $b['faq_title'] }}</h2>
-          <div class="faq__list">
-            @foreach ([1, 2, 3, 4, 5] as $i)
-              <details data-rise>
-                <summary>{{ $b["faq_{$i}_q"] }}</summary>
-                <p>{{ $b["faq_{$i}_a"] }}</p>
-              </details>
-            @endforeach
-          </div>
+        <div class="anchor lab__anchor" data-anchor data-fill="1.05" data-drag>
+          <div class="fallback" data-fallback></div>
+          {!! $hint !!}
         </div>
-      </section>
-    </main>
+        <div class="lab__progress" aria-hidden="true"><span data-progress></span></div>
+      </div>
+    </section>
 
-    {{-- The footer waits underneath and is uncovered as the page scrolls away. --}}
+    <section class="how" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <h2 id="how-title" data-words>{{ $b['how_title'] }}</h2>
+        <ol class="steps">
+          @foreach ([1, 2, 3] as $i)
+            <li data-in>
+              <span class="steps__n" aria-hidden="true">0{{ $i }}</span>
+              <h3>{{ $b["how_{$i}_t"] }}</h3>
+              <p>{{ $b["how_{$i}_d"] }}</p>
+            </li>
+          @endforeach
+        </ol>
+        <p class="ingredients" data-in><strong>{{ $b['ingredients_title'] }}:</strong> {{ $ingredients->implode(', ') }}. <em>{{ $b['contains_soy'] }}</em></p>
+      </div>
+    </section>
+
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <div class="wrap faq__grid">
+        <h2 id="faq-title" data-words>{{ $b['faq_title'] }}</h2>
+        <div class="faq__list">
+          @foreach ([1, 2, 3, 4, 5] as $i)
+            <details data-in>
+              <summary>{{ $b["faq_{$i}_q"] }}</summary>
+              <div class="faq__a"><p>{{ $b["faq_{$i}_a"] }}</p></div>
+            </details>
+          @endforeach
+        </div>
+      </div>
+    </section>
+
     <footer class="foot">
       <div class="wrap foot__grid">
         <div class="foot__contact">
@@ -249,37 +205,31 @@
           @endif
         </div>
         <nav class="foot__nav" aria-label="Footer">
-          <a href="#menu">{!! $roll($b['nav_menu']) !!}</a>
-          <a href="#how">{!! $roll($b['nav_how']) !!}</a>
-          <a href="#story">{!! $roll($b['nav_story']) !!}</a>
-          <a href="#faq">{!! $roll($b['nav_faq']) !!}</a>
-          <a href="#top">{!! $roll($b['footer_top'].' ↑') !!}</a>
+          <a href="#flavours">{{ $b['nav_flavours'] }}</a>
+          <a href="#how">{{ $b['nav_how'] }}</a>
+          <a href="#faq">{{ $b['nav_faq'] }}</a>
+          <a href="#top">{{ $b['footer_top'] }} ↑</a>
         </nav>
       </div>
-      <p class="foot__word" aria-hidden="true">Big Ed's</p>
-      <div class="wrap foot__legal">
-        <p>© {{ date('Y') }} Big Ed's Jerky. {{ $b['footer_legal'] }}</p>
-        <p>{{ $b['footer_photos'] }}</p>
-      </div>
+      <p class="foot__word" aria-hidden="true" data-foot-word>Big Ed's</p>
+      <p class="wrap foot__legal">© {{ date('Y') }} Big Ed's Jerky. {{ $b['footer_legal'] }}</p>
     </footer>
-  </div>
+  </main>
 
-  {{-- The order ticket: shows once something is in the order. --}}
+  {{-- Shows once something is in the order. --}}
   <button class="ticket" type="button" data-ticket data-open-order hidden>
+    <span class="ticket__count" data-ticket-count>0</span>
     <span class="ticket__sum"><small data-ticket-packs></small><strong data-ticket-total></strong></span>
-    <span class="ticket__go">{{ $b['bar_review'] }} <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="ticket__go">{{ $b['bar_review'] }}</span>
   </button>
 
-  <dialog class="sheet" data-sheet aria-labelledby="sheet-title">
-    <div class="receipt">
-      <button class="receipt__close" type="button" data-close aria-label="{{ $b['sheet_close'] }}">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-      <header class="receipt__head">
-        <img src="{{ $cms->imageUrl('site_logo', 'img/logo.webp') }}" width="56" height="56" alt="">
+  <dialog class="panel" data-sheet aria-labelledby="sheet-title">
+    <div class="panel__in">
+      <header class="panel__head">
         <h2 id="sheet-title">{{ $b['sheet_title'] }}</h2>
-        <p>Big Ed's Jerky · {{ $b['receipt_sub'] }}</p>
-        <p data-receipt-date></p>
+        <button class="panel__close" type="button" data-close aria-label="{{ $b['sheet_close'] }}">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </header>
       <div data-sheet-body></div>
     </div>
@@ -288,7 +238,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="application/json" id="menu-data">@json($menu)</script>
-  <script type="application/json" id="beta-texts">@json($b + ['_ingredients' => $ingredients, '_img' => asset('img/beta')])</script>
+  <script type="application/json" id="beta-texts">@json($b + ['_ingredients' => $ingredients])</script>
   <script src="{{ asset('vendor/gsap.min.js') }}" defer></script>
   <script src="{{ asset('vendor/ScrollTrigger.min.js') }}" defer></script>
   <script src="{{ asset('vendor/lenis.min.js') }}" defer></script>
